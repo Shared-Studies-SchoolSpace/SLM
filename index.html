@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HanziNA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <style>
+/* ============================================================
+   HanziNA — Learner Controlled Chinese Representation System
+   Palette: Blue / Orange / White / Greys
+   ============================================================ */
+
+:root {
+  --blue-900: #0a2540;
+  --blue-700: #1449a8;
+  --blue-600: #1b5bff;
+  --blue-100: #e3edff;
+  --blue-50:  #f2f7ff;
+
+  --orange-700: #d95f00;
+  --orange-600: #ff7a00;
+  --orange-400: #ffa23e;
+  --orange-100: #ffe9d2;
+  --orange-50:  #fff5ea;
+
+  --grey-900: #1f2937;
+  --grey-700: #4b5563;
+  --grey-500: #6b7280;
+  --grey-400: #9aa3b2;
+  --grey-200: #e5e9f0;
+  --grey-100: #f2f4f8;
+  --grey-50:  #f8fafc;
+  --white:    #ffffff;
+
+  --shadow-sm: 0 1px 2px rgba(10, 37, 64, .06), 0 2px 8px rgba(10, 37, 64, .05);
+  --shadow-md: 0 4px 14px rgba(10, 37, 64, .08), 0 12px 32px rgba(10, 37, 64, .07);
+  --shadow-lg: 0 12px 28px rgba(10, 37, 64, .12), 0 24px 60px rgba(10, 37, 64, .10);
+
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  --font-ui: "Roboto", "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --font-zh: "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
+  --font-mono: "SF Mono", "JetBrains Mono", Consolas, "Courier New", monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-ui);
+  color: var(--grey-900);
+  background:
+    radial-gradient(1100px 500px at 85% -10%, var(--orange-50) 0%, transparent 60%),
+    radial-gradient(1000px 600px at -10% 0%, var(--blue-50) 0%, transparent 55%),
+    linear-gradient(180deg, var(--white) 0%, var(--grey-50) 100%);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ---------- Decorative background ---------- */
+.bg-decor { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .35; }
+.blob-blue   { width: 520px; height: 520px; top: -160px; right: -120px; background: radial-gradient(circle, #bcd4ff, transparent 70%); }
+.blob-orange { width: 420px; height: 420px; bottom: -140px; left: -120px; background: radial-gradient(circle, #ffd9ad, transparent 70%); }
+.watermark {
+  position: absolute; font-family: var(--font-zh); font-weight: 700;
+  color: rgba(20, 73, 168, .045); user-select: none; line-height: 1;
+}
+.watermark-1 { font-size: 34vw; top: 6%; left: -6%; }
+.watermark-2 { font-size: 26vw; bottom: -10%; right: -4%; color: rgba(255, 122, 0, .05); }
+
+/* ---------- Header ---------- */
+.site-header {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 32px;
+  background: rgba(255, 255, 255, .78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--grey-200);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark {
+  width: 42px; height: 42px; border-radius: 12px;
+  display: grid; place-items: center;
+  font-family: var(--font-zh); font-size: 22px; color: var(--white); font-weight: 700;
+  background: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-900) 60%, var(--orange-600) 130%);
+  box-shadow: var(--shadow-sm);
+}
+.brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+.brand-name { font-weight: 800; letter-spacing: .08em; color: var(--blue-900); }
+.brand-sub { font-size: 11px; color: var(--grey-500); }
+.site-nav { display: flex; gap: 24px; }
+.site-nav a {
+  color: var(--grey-700); text-decoration: none; font-size: 14px; font-weight: 600;
+  padding: 6px 2px; border-bottom: 2px solid transparent; transition: color .2s, border-color .2s;
+}
+.site-nav a:hover { color: var(--orange-600); border-bottom-color: var(--orange-600); }
+
+/* ---------- Layout ---------- */
+main { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 48px 28px 72px; }
+.view { animation: viewIn .45s ease both; }
+@keyframes viewIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Hero ---------- */
+.hero { text-align: center; margin-bottom: 44px; }
+.eyebrow {
+  display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--blue-700);
+  background: var(--blue-100); border: 1px solid #c9dcff;
+  padding: 6px 14px; border-radius: 999px; margin-bottom: 18px;
+}
+.hero h1 {
+  font-size: clamp(34px, 5vw, 54px); font-weight: 800; letter-spacing: -.02em;
+  color: var(--blue-900); margin-bottom: 16px;
+}
+.hl-orange {
+  background: linear-gradient(120deg, var(--orange-600), var(--orange-400));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.lead { max-width: 720px; margin: 0 auto 22px; font-size: 17px; line-height: 1.65; color: var(--grey-700); }
+.hero-pills { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.pill { font-size: 13px; font-weight: 600; padding: 7px 16px; border-radius: 999px; border: 1px solid transparent; }
+.pill-blue   { color: var(--blue-700);   background: var(--blue-100);   border-color: #c9dcff; }
+.pill-orange { color: var(--orange-700); background: var(--orange-100); border-color: #ffd9ad; }
+.pill-grey   { color: var(--grey-700);   background: var(--grey-100);   border-color: var(--grey-200); }
+
+/* ---------- Workspace grid ---------- */
+.workspace-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 28px; align-items: start; }
+@media (max-width: 900px) { .workspace-grid { grid-template-columns: 1fr; } }
+
+.input-form { display: flex; flex-direction: column; gap: 20px; }
+
+.field-card {
+  background: var(--white); border: 1px solid var(--grey-200);
+  border-radius: var(--radius-lg); padding: 22px 22px 18px;
+  box-shadow: var(--shadow-md); transition: box-shadow .25s, border-color .25s;
+}
+.field-card:focus-within { border-color: var(--blue-600); box-shadow: var(--shadow-lg); }
+.field-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.field-head label { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--blue-900); font-size: 15px; }
+.label-zh { font-family: var(--font-zh); color: var(--grey-400); font-weight: 500; font-size: 14px; }
+.step-badge {
+  width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+  color: #fff; font-size: 13px; font-weight: 800;
+}
+.step-blue   { background: linear-gradient(135deg, var(--blue-600), var(--blue-900)); }
+.step-orange { background: linear-gradient(135deg, var(--orange-600), var(--orange-400)); }
+.char-count { font-size: 12px; color: var(--grey-400); font-variant-numeric: tabular-nums; }
+
+textarea {
+  width: 100%; resize: vertical; min-height: 110px;
+  border: 1.5px solid var(--grey-200); border-radius: var(--radius-md);
+  padding: 14px 16px; font-size: 17px; line-height: 1.9;
+  font-family: var(--font-zh); color: var(--grey-900);
+  background: var(--grey-50); outline: none;
+  transition: border-color .2s, background .2s, box-shadow .2s;
+}
+textarea.mono { font-family: var(--font-mono); font-size: 14.5px; line-height: 1.8; }
+textarea:focus {
+  border-color: var(--blue-600); background: var(--white);
+  box-shadow: 0 0 0 4px rgba(27, 91, 255, .10);
+}
+textarea::placeholder { color: var(--grey-400); }
+.field-hint { margin-top: 10px; font-size: 12.5px; color: var(--grey-500); }
+.field-hint code {
+  font-family: var(--font-mono); font-size: 12px; color: var(--orange-700);
+  background: var(--orange-50); border: 1px solid var(--orange-100);
+  padding: 1px 7px; border-radius: 6px;
+}
+
+/* ---------- Error panel ---------- */
+.error-panel {
+  border: 1.5px solid #ffc79a; border-left: 6px solid var(--orange-600);
+  background: linear-gradient(180deg, #fff8f1, #fff3e4);
+  border-radius: var(--radius-md); padding: 18px 20px;
+  box-shadow: var(--shadow-sm); animation: shake .4s ease;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); } 75% { transform: translateX(5px); }
+}
+.error-panel-head { display: flex; align-items: center; gap: 10px; color: var(--orange-700); margin-bottom: 10px; }
+.error-icon {
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--orange-600); color: #fff; font-weight: 800; font-size: 14px;
+}
+#error-list { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+#error-list li {
+  font-size: 13.5px; color: var(--grey-900); padding: 8px 12px;
+  background: rgba(255, 255, 255, .75); border: 1px solid #ffdcb8; border-radius: 8px;
+}
+#error-list li strong { color: var(--orange-700); }
+.error-note { font-size: 12px; color: var(--grey-500); font-style: italic; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  font-family: var(--font-ui); font-size: 15px; font-weight: 700;
+  border: none; border-radius: 12px; cursor: pointer;
+  padding: 14px 26px; display: inline-flex; align-items: center; gap: 10px;
+  transition: transform .15s, box-shadow .2s, background .2s, color .2s;
+}
+.btn:active { transform: translateY(1px) scale(.99); }
+
+.btn-primary {
+  position: relative; overflow: hidden; color: #fff;
+  background: linear-gradient(120deg, var(--orange-600) 0%, var(--orange-400) 100%);
+  box-shadow: 0 8px 22px rgba(255, 122, 0, .35);
+  font-size: 16px; padding: 16px 34px;
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(255, 122, 0, .45); }
+.btn-shine {
+  position: absolute; top: 0; left: -80%; width: 50%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent);
+  transform: skewX(-20deg); animation: shine 3.2s ease-in-out infinite;
+}
+@keyframes shine { 0%, 60% { left: -80%; } 100% { left: 130%; } }
+.btn-arrow { transition: transform .2s; }
+.btn-primary:hover .btn-arrow { transform: translateX(4px); }
+
+.btn-ghost {
+  color: var(--blue-700); background: var(--white);
+  border: 1.5px solid var(--blue-600); box-shadow: var(--shadow-sm);
+}
+.btn-ghost:hover { background: var(--blue-50); transform: translateY(-2px); }
+
+.btn-quiet { color: var(--grey-500); background: transparent; padding: 14px 16px; }
+.btn-quiet:hover { color: var(--grey-900); background: var(--grey-100); }
+
+.btn-back {
+  color: var(--blue-700); background: var(--white);
+  border: 1.5px solid var(--grey-200); box-shadow: var(--shadow-sm);
+  padding: 10px 18px; font-size: 14px;
+}
+.btn-back:hover { border-color: var(--blue-600); background: var(--blue-50); transform: translateX(-2px); }
+.back-arrow { font-weight: 800; }
+
+.btn-mini {
+  padding: 7px 14px; font-size: 12.5px; border-radius: 9px;
+  color: var(--orange-700); background: var(--orange-50); border: 1px solid var(--orange-100);
+}
+.btn-mini:hover { background: var(--orange-100); }
+
+.actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+
+/* ---------- Side panel ---------- */
+.side-panel { display: flex; flex-direction: column; gap: 20px; }
+.side-card {
+  background: var(--white); border: 1px solid var(--grey-200);
+  border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-md);
+}
+.side-card h3 { color: var(--blue-900); font-size: 16px; margin-bottom: 16px; }
+.side-card p { font-size: 14px; line-height: 1.7; color: var(--grey-700); }
+.side-card-accent {
+  background: linear-gradient(150deg, var(--blue-900) 0%, #123a6b 70%, #1d4b8f 100%);
+  border: none; color: #fff;
+}
+.side-card-accent h3 { color: #fff; }
+.side-card-accent p { color: #c8d8f2; }
+
+.token-demo {
+  background: var(--grey-50); border: 1px dashed var(--grey-200);
+  border-radius: var(--radius-md); padding: 18px 14px 12px; margin-bottom: 18px;
+  text-align: center;
+}
+.token-demo-row { font-size: 20px; font-family: var(--font-mono); }
+.td-hz { font-family: var(--font-zh); font-weight: 700; color: var(--blue-900); }
+.td-py { color: var(--orange-600); font-weight: 700; }
+.td-en { color: var(--grey-700); }
+.td-sep { color: var(--grey-400); }
+.token-demo-labels { display: flex; justify-content: center; gap: 30px; margin-top: 8px; }
+.tdl { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+.td-hz-l { color: var(--blue-600); } .td-py-l { color: var(--orange-600); } .td-en-l { color: var(--grey-500); }
+
+.principles { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+.principles li { display: flex; gap: 12px; font-size: 13.5px; line-height: 1.6; color: var(--grey-700); }
+.principles strong { color: var(--blue-900); }
+.dot { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; }
+.dot-blue { background: var(--blue-600); } .dot-orange { background: var(--orange-600); } .dot-grey { background: var(--grey-400); }
+
+/* ---------- Reading workspace ---------- */
+.reading-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  flex-wrap: wrap; margin-bottom: 26px;
+  background: var(--white); border: 1px solid var(--grey-200);
+  border-radius: var(--radius-lg); padding: 14px 20px; box-shadow: var(--shadow-md);
+  position: sticky; top: 78px; z-index: 10;
+}
+.reading-title { display: flex; flex-direction: column; align-items: center; line-height: 1.25; }
+.rt-label { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--orange-600); }
+.rt-zh { font-family: var(--font-zh); font-size: 19px; color: var(--blue-900); font-weight: 700; }
+/* Pinyin toggle */
+.btn-toggle {
+  padding: 9px 18px; font-size: 13px; font-weight: 700; font-family: var(--font-ui);
+  border: 1.5px solid var(--orange-600); border-radius: 999px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  color: var(--orange-700); background: var(--orange-50); box-shadow: var(--shadow-sm);
+  transition: background .2s, color .2s, box-shadow .2s, transform .15s;
+}
+.btn-toggle:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.btn-toggle .toggle-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--orange-600); transition: background .2s;
+}
+.btn-toggle.off { color: var(--grey-500); background: var(--grey-100); border-color: var(--grey-200); }
+.btn-toggle.off .toggle-dot { background: var(--grey-400); }
+
+.passage-card {
+  position: relative; overflow: hidden;
+  background: var(--white); border: 1px solid var(--grey-200);
+  border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
+  padding: clamp(36px, 6vw, 72px) clamp(28px, 7vw, 84px);
+}
+.passage-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 6px;
+  background: linear-gradient(90deg, var(--blue-600) 0%, var(--blue-900) 45%, var(--orange-600) 100%);
+}
+.passage-ornament {
+  position: absolute; right: -30px; bottom: -60px;
+  font-family: var(--font-zh); font-size: 240px; line-height: 1;
+  color: rgba(27, 91, 255, .05); user-select: none; pointer-events: none;
+}
+
+.passage {
+  position: relative; z-index: 1;
+  font-family: "Roboto", var(--font-ui);
+  font-size: 22px;
+  line-height: 2.15;
+  color: var(--grey-900);
+  display: flex; flex-wrap: wrap; align-items: flex-end; row-gap: 14px;
+}
+
+.punct { color: var(--grey-400); padding: 0 2px; user-select: none; }
+.punct.space { white-space: pre; }
+
+/* Clickable word */
+.word {
+  display: inline-flex; flex-direction: column; align-items: center;
+  border: 1.5px solid transparent; border-radius: 12px;
+  padding: 4px 8px 6px; margin: 0 1px;
+  cursor: pointer; background: transparent;
+  font-family: inherit; font-size: inherit; line-height: 1.35;
+  transition: background .25s, border-color .25s, box-shadow .25s, transform .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.word:hover {
+  background: var(--blue-50); border-color: var(--blue-100);
+  transform: translateY(-3px); box-shadow: var(--shadow-sm);
+}
+.word:focus-visible { outline: 3px solid rgba(27, 91, 255, .35); outline-offset: 2px; }
+
+.word .hz {
+  font-family: "Roboto", var(--font-ui);
+  font-size: 22px; font-weight: 500; line-height: 1.35;
+  color: var(--grey-900); transition: color .25s;
+}
+.word:hover .hz { color: var(--blue-700); }
+
+/* Global Pinyin layer — permanently above every character when enabled */
+.word .py-top {
+  font-family: "Roboto", var(--font-ui);
+  font-size: 12px; font-weight: 700; line-height: 1.2;
+  letter-spacing: .03em; color: var(--orange-600);
+  white-space: nowrap; margin-bottom: 2px;
+}
+.passage.pinyin-off .word .py-top { display: none; }
+
+.word.active {
+  background: linear-gradient(160deg, var(--orange-50), var(--orange-100));
+  border-color: var(--orange-400);
+  box-shadow: 0 6px 18px rgba(255, 122, 0, .22);
+  transform: translateY(-3px);
+}
+.word.active .hz { color: var(--orange-700); }
+
+/* Click-to-reveal popup tooltip (appears above the clicked character) */
+.char-popup {
+  position: absolute; z-index: 30;
+  transform: translate(-50%, calc(-100% - 12px));
+  background: var(--white);
+  border: 1px solid var(--grey-200);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  padding: 10px 16px 11px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  white-space: nowrap; pointer-events: none;
+  animation: popupIn .18s cubic-bezier(.22, 1, .36, 1) both;
+}
+.char-popup::after {
+  content: ""; position: absolute; left: 50%; bottom: -6px;
+  width: 10px; height: 10px; transform: translateX(-50%) rotate(45deg);
+  background: var(--white);
+  border-right: 1px solid var(--grey-200);
+  border-bottom: 1px solid var(--grey-200);
+}
+@keyframes popupIn {
+  from { opacity: 0; transform: translate(-50%, calc(-100% - 4px)) scale(.92); }
+  to   { opacity: 1; transform: translate(-50%, calc(-100% - 12px)) scale(1); }
+}
+.char-popup .cp-py {
+  font-family: "Roboto", var(--font-ui);
+  font-size: 12px; font-weight: 700; letter-spacing: .03em;
+  color: var(--orange-600); line-height: 1.3;
+}
+.char-popup .cp-en {
+  font-family: "Roboto", var(--font-ui);
+  font-size: 13px; font-weight: 500; font-style: italic;
+  color: var(--grey-700); line-height: 1.35;
+}
+
+.reading-hint {
+  text-align: center; margin-top: 26px;
+  font-size: 13.5px; color: var(--grey-500);
+}
+.reading-hint::before { content: "✦ "; color: var(--orange-400); }
+.reading-hint::after { content: " ✦"; color: var(--orange-400); }
+
+/* ---------- Toasts ---------- */
+#toast-root {
+  position: fixed; top: 84px; right: 22px; z-index: 100;
+  display: flex; flex-direction: column; gap: 10px; max-width: 360px;
+}
+.toast {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--white); border: 1px solid var(--grey-200);
+  border-left: 5px solid var(--blue-600);
+  border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow-lg);
+  animation: toastIn .35s cubic-bezier(.22, 1, .36, 1) both;
+}
+.toast.error { border-left-color: var(--orange-600); background: linear-gradient(180deg, #fffaf4, #fff3e2); }
+.toast.success { border-left-color: #18a058; }
+.toast.out { animation: toastOut .3s ease both; }
+@keyframes toastIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: none; } }
+@keyframes toastOut { to { opacity: 0; transform: translateX(30px); } }
+.toast-icon {
+  flex: none; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center; color: #fff; font-size: 14px; font-weight: 800;
+  background: var(--blue-600);
+}
+.toast.error .toast-icon { background: var(--orange-600); }
+.toast.success .toast-icon { background: #18a058; }
+.toast-body strong { display: block; font-size: 13.5px; color: var(--grey-900); margin-bottom: 2px; }
+.toast-body span { font-size: 12.5px; color: var(--grey-500); line-height: 1.5; }
+
+/* ---------- Footer ---------- */
+.site-footer {
+  position: relative; z-index: 1;
+  text-align: center; padding: 26px 20px 34px;
+  font-size: 12.5px; color: var(--grey-400);
+  border-top: 1px solid var(--grey-200);
+  background: rgba(255,255,255,.6);
+}
+.footer-sep { margin: 0 10px; color: var(--orange-400); }
+
+@media (max-width: 720px) {
+  .site-header { padding: 12px 16px; }
+  .brand-sub, .site-nav { display: none; }
+  main { padding: 32px 16px 56px; }
+  .reading-toolbar { top: 66px; }
+}
+
+</style>
+</head>
+<body>
+
+  <!-- Decorative background -->
+  <div class="bg-decor" aria-hidden="true">
+    <div class="blob blob-blue"></div>
+    <div class="blob blob-orange"></div>
+    <div class="watermark watermark-1">汉</div>
+    <div class="watermark watermark-2">字</div>
+  </div>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="brand">
+      <div class="brand-mark">汉</div>
+      <div class="brand-text">
+        <span class="brand-name">HanziNA</span>
+        <span class="brand-sub">Learner-Controlled Chinese Reading</span>
+      </div>
+    </div>
+    <nav class="site-nav">
+      <a href="#how-it-works">How it works</a>
+      <a href="#input-view">Workspace</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ============ INPUT WORKSPACE ============ -->
+    <section id="input-view" class="view">
+      <div class="hero">
+        <h1>Read Chinese <span class="hl-orange">on your own terms.</span></h1>
+        <p class="lead">
+          Paste your Chinese text and a word-level mapping. HanziNA builds an interactive
+          reading session where <strong>one lexical unit, one click</strong> reveals its
+          Pinyin and English meaning — nothing is disclosed until you ask for it.
+        </p>
+        <div class="hero-pills">
+          <span class="pill pill-blue">Progressive disclosure</span>
+          <span class="pill pill-orange">Occurrence-order mapping</span>
+          <span class="pill pill-grey">100% learner-controlled</span>
+        </div>
+      </div>
+
+      <div class="workspace-grid">
+        <form id="input-form" class="input-form" novalidate>
+          <!-- Chinese text -->
+          <div class="field-card">
+            <div class="field-head">
+              <label for="chinese-text">
+                <span class="step-badge step-blue">1</span>
+                Chinese Text <span class="label-zh">中文文本</span>
+              </label>
+              <span class="char-count" id="text-count">0 characters</span>
+            </div>
+            <textarea id="chinese-text" rows="4"
+              placeholder="太初有道，道与神同在，道就是神。"></textarea>
+            <p class="field-hint">The passage you want to learn. Punctuation is preserved in the reading view.</p>
+          </div>
+
+          <!-- Mapping -->
+          <div class="field-card">
+            <div class="field-head">
+              <label for="mapping-input">
+                <span class="step-badge step-orange">2</span>
+                Word Mapping <span class="label-zh">词语映射</span>
+              </label>
+              <span class="char-count" id="mapping-count">0 entries</span>
+            </div>
+            <textarea id="mapping-input" rows="4" class="mono"
+              placeholder="太初(tàichū,In the beginning) 有(yǒu,was) 道(dào,the Word) …"></textarea>
+            <p class="field-hint">
+              Format: <code>Hanzi(pinyin,english)</code> — one entry per <em>occurrence</em>, in the exact order of the text.
+            </p>
+          </div>
+
+          <!-- Error panel -->
+          <div id="error-panel" class="error-panel" hidden>
+            <div class="error-panel-head">
+              <span class="error-icon">!</span>
+              <strong>We couldn't generate the reading session</strong>
+            </div>
+            <ul id="error-list"></ul>
+            <p class="error-note">Fix the issues above and generate again — HanziNA never invents missing mappings.</p>
+          </div>
+
+          <!-- Actions -->
+          <div class="actions">
+            <button type="submit" class="btn btn-primary" id="generate-btn">
+              <span class="btn-shine"></span>
+              Generate Reading
+              <span class="btn-arrow">→</span>
+            </button>
+            <button type="button" class="btn btn-ghost" id="example-btn">Load example</button>
+            <button type="button" class="btn btn-quiet" id="clear-btn">Clear</button>
+          </div>
+        </form>
+
+        <!-- Side panel -->
+        <aside class="side-panel" id="how-it-works">
+          <div class="side-card">
+            <h3>How the mapping works</h3>
+            <div class="token-demo">
+              <div class="token-demo-row">
+                <span class="td-hz">道</span>
+                <span class="td-sep">(</span>
+                <span class="td-py">dào</span>
+                <span class="td-sep">,</span>
+                <span class="td-en">the Word</span>
+                <span class="td-sep">)</span>
+              </div>
+              <div class="token-demo-labels">
+                <span class="tdl td-hz-l">Hanzi</span>
+                <span class="tdl td-py-l">Pinyin</span>
+                <span class="tdl td-en-l">English</span>
+              </div>
+            </div>
+            <ul class="principles">
+              <li><span class="dot dot-blue"></span><div><strong>Occurrence-order based.</strong> Each entry maps to one occurrence in the text — the same Hanzi appearing twice needs two entries, in sequence.</div></li>
+              <li><span class="dot dot-orange"></span><div><strong>Progressive disclosure.</strong> Toggle Pinyin above the passage, or click any character to pop up its Pinyin + English.</div></li>
+            </ul>
+          </div>
+          <div class="side-card side-card-accent">
+            <h3>Why learner-controlled?</h3>
+            <p>
+              Permanently displaying Pinyin and English lets the eye skip the characters.
+              By keeping assistance hidden until the moment you request it, HanziNA keeps the
+              Hanzi as the primary representation — you decide when help is disclosed.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ============ READING WORKSPACE ============ -->
+    <section id="reading-view" class="view" hidden>
+      <div class="reading-toolbar">
+        <button class="btn btn-back" id="back-btn">
+          <span class="back-arrow">←</span> Edit inputs
+        </button>
+        <div class="reading-title">
+          <span class="rt-label">Reading session</span>
+          <span class="rt-zh">阅读练习</span>
+        </div>
+        <button type="button" class="btn-toggle" id="pinyin-toggle" aria-pressed="true">
+          <span class="toggle-dot"></span><span id="pinyin-toggle-label">Pinyin On</span>
+        </button>
+      </div>
+
+      <div class="passage-card">
+        <div class="passage-ornament" aria-hidden="true">讀</div>
+        <div id="passage" class="passage" aria-live="polite"></div>
+      </div>
+
+      <p class="reading-hint">
+        Click any character to pop up its Pinyin and English meaning — click anywhere else to dismiss.
+      </p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>HanziNA</span>
+  </footer>
+
+  <div id="toast-root" aria-live="assertive"></div>
+
+  <script>
+/* ============================================================
+   HanziNA — Learner Controlled Chinese Representation System
+   Vanilla JS · no dependencies · runs entirely in the browser
+   ============================================================ */
+(function (global) {
+  "use strict";
+
+  /* ---------------- Core (pure) logic ---------------- */
+
+  // CJK unified ideographs (+ extensions A, compatibility)
+  var CJK_RE = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/;
+  var CJK_GLOBAL_RE = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/g;
+
+  // Accept full-width variants as well as ASCII punctuation
+  function normalizeMapping(raw) {
+    return raw
+      .replace(/（/g, "(")
+      .replace(/）/g, ")")
+      .replace(/，/g, ",");
+  }
+
+  /**
+   * Parse the mapping string into occurrence-ordered entries.
+   * Format per entry: Hanzi(pinyin,english)
+   * Returns { entries: [{hanzi,pinyin,english,index}], errors: [{index,token,message}] }
+   */
+  function parseMapping(raw) {
+    var entries = [];
+    var errors = [];
+    var norm = normalizeMapping(raw);
+
+    // Scan for Hanzi(...) tokens with a global regex so that English glosses
+    // containing spaces (e.g. "In the beginning") stay inside one entry.
+    // Any non-whitespace text between matches is reported as malformed.
+    var ENTRY_RE = /([^\s()]+)\(([^()]*)\)/g;
+    var cursor = 0;
+    var position = 0; // 1-based entry/issue counter for messages
+    var m;
+
+    function reportLeftover(fragment) {
+      fragment.split(/\s+/).filter(function (t) { return t.length > 0; }).forEach(function (tok) {
+        position++;
+        errors.push({
+          index: position, token: tok,
+          message: "Entry " + position + " is malformed: \u201C" + tok + "\u201D. Expected format: Hanzi(pinyin,english)."
+        });
+      });
+    }
+
+    while ((m = ENTRY_RE.exec(norm)) !== null) {
+      reportLeftover(norm.slice(cursor, m.index));
+      cursor = ENTRY_RE.lastIndex;
+      position++;
+      var i = position;
+      var hanzi = m[1];
+      var parts = m[2].split(",");
+      var pinyin = (parts.shift() || "").trim();
+      var english = parts.join(",").trim(); // english may itself contain commas
+
+      var token = m[0];
+      if (!pinyin) {
+        errors.push({
+          index: i, token: token,
+          message: "Entry " + i + " (\u201C" + hanzi + "\u201D) is missing its Pinyin."
+        });
+        continue;
+      }
+      if (!english) {
+        errors.push({
+          index: i, token: token,
+          message: "Entry " + i + " (\u201C" + hanzi + "\u201D) is missing its English meaning."
+        });
+        continue;
+      }
+      if (!CJK_RE.test(hanzi)) {
+        errors.push({
+          index: i, token: token,
+          message: "Entry " + i + " (\u201C" + hanzi + "\u201D) does not contain any Chinese character."
+        });
+        continue;
+      }
+      entries.push({ hanzi: hanzi, pinyin: pinyin, english: english, index: entries.length });
+    }
+    reportLeftover(norm.slice(cursor));
+
+    return { entries: entries, errors: errors };
+  }
+
+  function extractHanzi(text) {
+    return (text.match(CJK_GLOBAL_RE) || []).join("");
+  }
+
+  /**
+   * Validate both inputs. Returns an array of human-readable error strings.
+   * Empty array means everything is valid.
+   */
+  function validateInputs(textRaw, mappingRaw) {
+    var errors = [];
+
+    if (!textRaw || !textRaw.trim()) {
+      errors.push("The Chinese text is empty. Paste the passage you want to learn.");
+    }
+    if (!mappingRaw || !mappingRaw.trim()) {
+      errors.push("The word mapping is empty. Paste one Hanzi(pinyin,english) entry per occurrence.");
+    }
+    if (errors.length) return errors;
+
+    var parsed = parseMapping(mappingRaw);
+    parsed.errors.forEach(function (e) { errors.push(e.message); });
+    if (!parsed.entries.length) return errors;
+
+    // Occurrence-order check: concatenated mapping Hanzi must reproduce the
+    // text's Chinese character stream exactly (punctuation excluded).
+    var expected = extractHanzi(textRaw);
+    var provided = parsed.entries.map(function (e) { return e.hanzi; }).join("");
+
+    if (provided !== expected) {
+      var msg = "The mapping does not match the Chinese text: the text contains " +
+        expected.length + " Chinese character" + (expected.length === 1 ? "" : "s") +
+        ", but the " + parsed.entries.length + " mapping entr" +
+        (parsed.entries.length === 1 ? "y accounts" : "ies account") + " for " + provided.length + ".";
+      // Locate the first divergence to help the learner fix it
+      var k = 0;
+      while (k < Math.min(expected.length, provided.length) && expected[k] === provided[k]) k++;
+      if (k < Math.max(expected.length, provided.length)) {
+        msg += " The first mismatch is at character " + (k + 1) +
+          " — text has \u201C" + (expected[k] || "∅") + "\u201D, mapping has \u201C" +
+          (provided[k] || "∅") + "\u201D.";
+      }
+      msg += " Remember: one entry per occurrence, in the exact order of the text.";
+      errors.push(msg);
+    }
+    return errors;
+  }
+
+  /**
+   * Build the render sequence: word items and punctuation items in text order.
+   * Precondition: validateInputs returned no errors.
+   */
+  function buildSequence(text, entries) {
+    var seq = [];
+    var entryIdx = 0;
+    var i = 0;
+    while (i < text.length) {
+      var ch = text[i];
+      if (CJK_RE.test(ch)) {
+        var entry = entries[entryIdx];
+        // guaranteed to align because validation compared the Hanzi streams
+        seq.push({ type: "word", hanzi: entry.hanzi, pinyin: entry.pinyin, english: entry.english, entryIndex: entryIdx });
+        i += entry.hanzi.length;
+        entryIdx++;
+      } else if (/\s/.test(ch)) {
+        seq.push({ type: "space" });
+        i++;
+      } else {
+        seq.push({ type: "punct", ch: ch });
+        i++;
+      }
+    }
+    return seq;
+  }
+
+  var core = {
+    parseMapping: parseMapping,
+    extractHanzi: extractHanzi,
+    validateInputs: validateInputs,
+    buildSequence: buildSequence
+  };
+
+  // Node export for testing
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = core;
+  }
+
+  /* ---------------- UI layer (browser only) ---------------- */
+  if (typeof document === "undefined") return;
+
+  var $ = function (sel) { return document.querySelector(sel); };
+
+  var EXAMPLE_TEXT = "太初有道，道与神同在，道就是神。";
+  var EXAMPLE_MAPPING =
+    "太初(tàichū,In the beginning) 有(yǒu,was) 道(dào,the Word) " +
+    "道(dào,the Word) 与(yǔ,with) 神(shén,God) 同在(tóngzài,was) " +
+    "道(dào,the Word) 就是(jiùshì,was) 神(shén,God)";
+
+  var activePopup = null;   // the single active popup element (exclusive)
+  var activeWord = null;    // the word button that owns the active popup
+  var pinyinOn = true;      // global Pinyin layer state
+
+  /* ----- Toasts ----- */
+  function toast(type, title, message) {
+    var root = $("#toast-root");
+    var el = document.createElement("div");
+    el.className = "toast " + type;
+    var icon = type === "error" ? "!" : type === "success" ? "✓" : "i";
+    el.innerHTML =
+      '<div class="toast-icon">' + icon + "</div>" +
+      '<div class="toast-body"><strong></strong><span></span></div>';
+    el.querySelector("strong").textContent = title;
+    el.querySelector("span").textContent = message;
+    root.appendChild(el);
+    setTimeout(function () {
+      el.classList.add("out");
+      setTimeout(function () { el.remove(); }, 320);
+    }, 6000);
+  }
+
+  /* ----- Counters ----- */
+  function updateCounters() {
+    var t = $("#chinese-text").value;
+    var hanzi = extractHanzi(t).length;
+    $("#text-count").textContent = hanzi + " Hanzi · " + t.trim().length + " characters";
+
+    var m = $("#mapping-input").value;
+    if (!m.trim()) {
+      $("#mapping-count").textContent = "0 entries";
+    } else {
+      var parsed = parseMapping(m);
+      $("#mapping-count").textContent =
+        parsed.entries.length + " entr" + (parsed.entries.length === 1 ? "y" : "ies") +
+        (parsed.errors.length ? " · " + parsed.errors.length + " issue" + (parsed.errors.length === 1 ? "" : "s") : "");
+    }
+  }
+
+  /* ----- View switching ----- */
+  function showView(id) {
+    ["#input-view", "#reading-view"].forEach(function (v) {
+      $(v).hidden = v !== id;
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  /* ----- Error panel ----- */
+  function showErrors(errors) {
+    var panel = $("#error-panel");
+    var list = $("#error-list");
+    list.innerHTML = "";
+    errors.forEach(function (e) {
+      var li = document.createElement("li");
+      li.textContent = e;
+      list.appendChild(li);
+    });
+    panel.hidden = false;
+    panel.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  /* ----- Reading session: exclusive popup ----- */
+  function closePopup() {
+    if (activePopup) { activePopup.remove(); activePopup = null; }
+    if (activeWord) {
+      activeWord.classList.remove("active");
+      activeWord.setAttribute("aria-pressed", "false");
+      activeWord = null;
+    }
+  }
+
+  function openPopup(btn, item) {
+    closePopup(); // exclusive: only one popup at a time
+    var popup = document.createElement("div");
+    popup.className = "char-popup";
+    popup.setAttribute("role", "tooltip");
+    var py = document.createElement("span");
+    py.className = "cp-py";
+    py.textContent = item.pinyin;
+    var en = document.createElement("span");
+    en.className = "cp-en";
+    en.textContent = item.english;
+    popup.appendChild(py);
+    popup.appendChild(en);
+    var host = $("#passage");
+    host.appendChild(popup);
+    popup.style.left = (btn.offsetLeft + btn.offsetWidth / 2) + "px";
+    popup.style.top = btn.offsetTop + "px";
+    activePopup = popup;
+    activeWord = btn;
+    btn.classList.add("active");
+    btn.setAttribute("aria-pressed", "true");
+  }
+
+  function renderPassage(seq) {
+    var host = $("#passage");
+    host.innerHTML = "";
+    closePopup();
+    host.classList.toggle("pinyin-off", !pinyinOn);
+
+    seq.forEach(function (item) {
+      if (item.type === "punct") {
+        var p = document.createElement("span");
+        p.className = "punct";
+        p.textContent = item.ch;
+        host.appendChild(p);
+      } else if (item.type === "space") {
+        var s = document.createElement("span");
+        s.className = "punct space";
+        s.textContent = " ";
+        host.appendChild(s);
+      } else {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "word";
+        btn.dataset.entryIndex = item.entryIndex;
+        btn.setAttribute("aria-pressed", "false");
+        btn.setAttribute("aria-label", item.hanzi + " — click for Pinyin and English");
+
+        var pyTop = document.createElement("span");
+        pyTop.className = "py-top";
+        pyTop.textContent = item.pinyin;
+        pyTop.setAttribute("aria-hidden", "true");
+
+        var hz = document.createElement("span");
+        hz.className = "hz";
+        hz.textContent = item.hanzi;
+
+        btn.appendChild(pyTop); // Pinyin sits permanently above the character
+        btn.appendChild(hz);
+
+        btn.addEventListener("click", function () {
+          if (activeWord === btn) {
+            closePopup(); // clicking the same character dismisses its popup
+          } else {
+            openPopup(btn, item); // closes any previous popup first
+          }
+        });
+
+        host.appendChild(btn);
+      }
+    });
+  }
+
+  function generateReading() {
+    var text = $("#chinese-text").value;
+    var mapping = $("#mapping-input").value;
+    $("#error-panel").hidden = true;
+
+    var errors = validateInputs(text, mapping);
+    if (errors.length) {
+      showErrors(errors);
+      toast("error", "Could not generate reading", errors.length + " issue" + (errors.length === 1 ? "" : "s") + " found. See the panel for details.");
+      return;
+    }
+
+    var parsed = parseMapping(mapping);
+    var seq = buildSequence(text, parsed.entries);
+    renderPassage(seq);
+    showView("#reading-view");
+    toast("success", "Reading session ready",
+      parsed.entries.length + " lexical unit" + (parsed.entries.length === 1 ? "" : "s") +
+      " loaded. Click any character for its Pinyin and meaning.");
+  }
+
+  /* ----- Wiring ----- */
+  document.addEventListener("DOMContentLoaded", function () {
+    $("#input-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      generateReading();
+    });
+
+    $("#chinese-text").addEventListener("input", updateCounters);
+    $("#mapping-input").addEventListener("input", updateCounters);
+
+    $("#example-btn").addEventListener("click", function () {
+      $("#chinese-text").value = EXAMPLE_TEXT;
+      $("#mapping-input").value = EXAMPLE_MAPPING;
+      $("#error-panel").hidden = true;
+      updateCounters();
+      toast("info", "Example loaded", "John 1:1 — 太初有道. Press Generate Reading to try it.");
+    });
+
+    $("#clear-btn").addEventListener("click", function () {
+      $("#chinese-text").value = "";
+      $("#mapping-input").value = "";
+      $("#error-panel").hidden = true;
+      updateCounters();
+    });
+
+    $("#back-btn").addEventListener("click", function () {
+      closePopup();
+      showView("#input-view"); // inputs are preserved for editing
+    });
+
+    $("#pinyin-toggle").addEventListener("click", function () {
+      pinyinOn = !pinyinOn;
+      $("#passage").classList.toggle("pinyin-off", !pinyinOn);
+      this.setAttribute("aria-pressed", String(pinyinOn));
+      this.classList.toggle("off", !pinyinOn);
+      $("#pinyin-toggle-label").textContent = pinyinOn ? "Pinyin On" : "Pinyin Off";
+    });
+
+    // Tapping/clicking anywhere outside a character dismisses the active popup
+    document.addEventListener("click", function (e) {
+      if (activePopup && !e.target.closest(".word")) closePopup();
+    });
+
+    updateCounters();
+  });
+
+})(typeof window !== "undefined" ? window : this);
+
+</script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>
