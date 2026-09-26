@@ -221,6 +221,10 @@
               <span class="rt-label">Reading session</span>
               <span class="rt-zh" id="reading-passage-preview">阅读练习</span>
             </div>
+            <button type="button" class="btn-toggle" id="pinyin-toggle" aria-pressed="true" aria-label="Toggle Pinyin layer">
+              <span class="toggle-dot" aria-hidden="true"></span>
+              <span id="pinyin-toggle-label">Pinyin On</span>
+            </button>
           </div>
 
           <!-- Passage Display Card -->
@@ -239,16 +243,79 @@
     </div>
   </div>
 
-  <!-- Modal for User Profile Name Edit -->
-  <dialog id="name-modal" class="gemini-dialog">
+  <!-- Modal for Supabase Authentication (Signup with Email, Username, Password; Login with Username, Password) -->
+  <dialog id="auth-modal" class="gemini-dialog">
     <div class="dialog-content">
-      <h3 class="dialog-title">Set Your Name</h3>
-      <p class="dialog-desc">Personalize your HanziNA session profile.</p>
-      <input type="text" id="username-input" class="dialog-input" placeholder="Your name (e.g. Kingsley)" />
-      <div class="dialog-actions">
-        <button type="button" class="btn-dialog-cancel" id="name-modal-cancel">Cancel</button>
-        <button type="button" class="btn-dialog-save" id="name-modal-save">Save</button>
+
+      <!-- Guest / Not Logged In View -->
+      <div id="auth-guest-view">
+        <div class="auth-tabs" role="tablist">
+          <button type="button" class="auth-tab-btn active" id="tab-btn-signin" role="tab" aria-selected="true" aria-controls="auth-signin-form">Sign In</button>
+          <button type="button" class="auth-tab-btn" id="tab-btn-signup" role="tab" aria-selected="false" aria-controls="auth-signup-form">Sign Up</button>
+        </div>
+
+        <!-- Sign In Form: Username & Password -->
+        <form id="auth-signin-form" class="auth-form" novalidate>
+          <div class="auth-field-group">
+            <label for="auth-signin-username" class="auth-field-label">Username</label>
+            <input type="text" id="auth-signin-username" class="dialog-input" placeholder="Your username" required autocomplete="username" />
+          </div>
+
+          <div class="auth-field-group">
+            <label for="auth-signin-password" class="auth-field-label">Password</label>
+            <input type="password" id="auth-signin-password" class="dialog-input" placeholder="Password" required autocomplete="current-password" />
+          </div>
+
+          <div id="auth-signin-error" class="auth-error-banner" hidden></div>
+
+          <div class="dialog-actions">
+            <button type="button" class="btn-dialog-cancel" id="auth-signin-cancel">Cancel</button>
+            <button type="submit" class="btn-dialog-save" id="auth-signin-submit">Sign In</button>
+          </div>
+        </form>
+
+        <!-- Sign Up Form: Email, Username, & Password -->
+        <form id="auth-signup-form" class="auth-form" hidden novalidate>
+          <div class="auth-field-group">
+            <label for="auth-signup-email" class="auth-field-label">Email</label>
+            <input type="email" id="auth-signup-email" class="dialog-input" placeholder="you@example.com" required autocomplete="email" />
+          </div>
+
+          <div class="auth-field-group">
+            <label for="auth-signup-username" class="auth-field-label">Username</label>
+            <input type="text" id="auth-signup-username" class="dialog-input" placeholder="Choose a username" required autocomplete="username" />
+          </div>
+
+          <div class="auth-field-group">
+            <label for="auth-signup-password" class="auth-field-label">Password</label>
+            <input type="password" id="auth-signup-password" class="dialog-input" placeholder="At least 6 characters" required autocomplete="new-password" />
+          </div>
+
+          <div id="auth-signup-error" class="auth-error-banner" hidden></div>
+
+          <div class="dialog-actions">
+            <button type="button" class="btn-dialog-cancel" id="auth-signup-cancel">Cancel</button>
+            <button type="submit" class="btn-dialog-save" id="auth-signup-submit">Create Account</button>
+          </div>
+        </form>
       </div>
+
+      <!-- Logged In / Profile View -->
+      <div id="auth-logged-in-view" hidden>
+        <div class="auth-profile-box">
+          <div class="auth-profile-avatar" id="auth-profile-avatar">L</div>
+          <div class="auth-profile-details">
+            <span class="auth-profile-name" id="auth-profile-username">Learner</span>
+            <span class="auth-profile-email" id="auth-profile-email">user@example.com</span>
+          </div>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" class="btn-dialog-cancel" id="auth-profile-close">Close</button>
+          <button type="button" class="btn-dialog-signout" id="auth-signout-btn">Sign Out</button>
+        </div>
+      </div>
+
     </div>
   </dialog>
 
@@ -269,6 +336,10 @@
 
 
 
+  <!-- Supabase Official Browser Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Supabase Integration Service -->
+  <script src="supabase.js"></script>
   <!-- Modularized Application Logic -->
   <script src="app.js"></script>
 </body>

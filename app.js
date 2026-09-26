@@ -199,34 +199,76 @@
   var activePopup = null;
   var activeWord = null;
   var pinyinOn = true;
+  try {
+    var storedPinyin = localStorage.getItem("hanzina_pinyin_on");
+    if (storedPinyin !== null) {
+      pinyinOn = storedPinyin === "true";
+    }
+  } catch (e) {}
   var ctaIndex = 0;
 
-  /* ----- User State & Dynamic Name ----- */
+  /* ----- User State & Authentication ----- */
+  var currentUser = null;
+
   function getUser() {
+    if (currentUser) {
+      return {
+        fullName: currentUser.username,
+        firstName: currentUser.username,
+        email: currentUser.email,
+        isLoggedIn: true
+      };
+    }
     var raw = localStorage.getItem("hanzina_user");
     if (raw) {
       try {
         var parsed = JSON.parse(raw);
-        if (parsed && parsed.firstName && parsed.firstName !== "Victor") return parsed;
+        if (parsed && parsed.firstName) {
+          return {
+            fullName: parsed.fullName || parsed.firstName,
+            firstName: parsed.firstName,
+            email: parsed.email || "",
+            isLoggedIn: true
+          };
+        }
       } catch (e) {}
     }
-    return { fullName: "Learner", firstName: "Learner" };
-  }
-
-  function saveUser(user) {
-    localStorage.setItem("hanzina_user", JSON.stringify(user));
-    renderUserUI();
-    renderCTA();
+    return { fullName: "Learner", firstName: "Learner", email: "", isLoggedIn: false };
   }
 
   function renderUserUI() {
     var user = getUser();
     var nameEl = $("#user-name-display");
     var avatarEl = $("#user-avatar");
-    if (nameEl) nameEl.textContent = user.fullName || user.firstName;
-    if (avatarEl) {
-      var initial = (user.firstName || user.fullName || "V").charAt(0).toUpperCase();
-      avatarEl.textContent = initial;
+    var card = $("#user-profile-card");
+
+    if (user.isLoggedIn && user.firstName !== "Learner") {
+      if (nameEl) nameEl.textContent = user.firstName;
+      if (avatarEl) {
+        avatarEl.textContent = (user.firstName || "U").charAt(0).toUpperCase();
+        avatarEl.title = user.email || user.fullName;
+      }
+      if (card) card.title = "Account profile: " + user.firstName;
+    } else {
+      if (nameEl) nameEl.textContent = "Sign In";
+      if (avatarEl) avatarEl.textContent = "👤";
+      if (card) card.title = "Click to sign in or create an account";
+    }
+  }
+
+  function checkUserSession() {
+    var sb = global.HanziNASupabase;
+    if (sb && typeof sb.getCurrentUser === "function") {
+      sb.getCurrentUser().then(function (user) {
+        if (user) {
+          currentUser = user;
+          try {
+            localStorage.setItem("hanzina_user", JSON.stringify({ fullName: user.username, firstName: user.username, email: user.email }));
+          } catch (e) {}
+          renderUserUI();
+          renderCTA();
+        }
+      }).catch(function () {});
     }
   }
 
@@ -319,6 +361,32 @@
     return [];
   }
 
+  function syncHistoryWithSupabase() {
+    var sb = global.HanziNASupabase;
+    if (sb && typeof sb.fetchSessions === "function") {
+      sb.fetchSessions().then(function (remoteList) {
+        if (Array.isArray(remoteList) && remoteList.length > 0) {
+          var localList = getHistory();
+          var mergedMap = {};
+          remoteList.forEach(function (it) { mergedMap[it.id] = it; });
+          localList.forEach(function (it) {
+            if (!mergedMap[it.id]) mergedMap[it.id] = it;
+          });
+          var combined = Object.keys(mergedMap).map(function (k) { return mergedMap[k]; }).sort(function (a, b) {
+            return (b.timestamp || 0) - (a.timestamp || 0);
+          }).slice(0, 30);
+
+          try {
+            localStorage.setItem("hanzina_history", JSON.stringify(combined));
+          } catch (e) {}
+          renderHistory();
+        }
+      }).catch(function (err) {
+        console.warn("[HanziNA] Supabase background sync notice:", err);
+      });
+    }
+  }
+
   function saveHistoryItem(text, mapping) {
     var list = getHistory();
     var preview = extractHanzi(text).slice(0, 16) || text.trim().slice(0, 16);
@@ -334,16 +402,36 @@
     list = [item].concat(list.filter(function (h) {
       return h.text !== text;
     })).slice(0, 30);
-    localStorage.setItem("hanzina_history", JSON.stringify(list));
+    try {
+      localStorage.setItem("hanzina_history", JSON.stringify(list));
+    } catch (e) {}
     renderHistory();
+
+    // Supabase asynchronous write (replaces browser-only memory)
+    var sb = global.HanziNASupabase;
+    if (sb && typeof sb.saveSession === "function") {
+      sb.saveSession(item).catch(function (err) {
+        console.warn("[HanziNA] Supabase save notice:", err);
+      });
+    }
   }
 
   function deleteHistoryItem(id, e) {
     if (e) e.stopPropagation();
     var list = getHistory().filter(function (h) { return h.id !== id; });
-    localStorage.setItem("hanzina_history", JSON.stringify(list));
+    try {
+      localStorage.setItem("hanzina_history", JSON.stringify(list));
+    } catch (e) {}
     renderHistory();
     toast("info", "Removed from history", "Session was deleted from recents.");
+
+    // Supabase asynchronous delete (replaces browser-only memory)
+    var sb = global.HanziNASupabase;
+    if (sb && typeof sb.deleteSession === "function") {
+      sb.deleteSession(id).catch(function (err) {
+        console.warn("[HanziNA] Supabase delete notice:", err);
+      });
+    }
   }
 
   function loadHistoryItem(id) {
@@ -628,7 +716,11 @@
       var el = $(v);
       if (el) el.hidden = v !== id;
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    var main = $("#main-area");
+    if (main) {
+      main.scrollTop = 0;
+    }
+    window.scrollTo({ top: 0, behavior: "auto" });
   }
 
   /* ----- Error Panel ----- */
@@ -655,6 +747,89 @@
     }
   }
 
+  function positionPopup(btn, popup) {
+    if (!btn || !popup) return;
+
+    var btnRect = btn.getBoundingClientRect();
+
+    // If button has scrolled completely off-screen, dismiss popup
+    if (btnRect.bottom < 0 || btnRect.top > window.innerHeight) {
+      closePopup();
+      return;
+    }
+
+    // Viewport dimensions (using visualViewport when available for mobile browser zoom/address-bar resilience)
+    var vv = window.visualViewport;
+    var vw = vv ? vv.width : (window.innerWidth || document.documentElement.clientWidth);
+    var vh = vv ? vv.height : (window.innerHeight || document.documentElement.clientHeight);
+    var vpLeft = vv ? vv.offsetLeft : 0;
+    var vpTop = vv ? vv.offsetTop : 0;
+
+    // Responsive margins & gaps
+    var margin = vw <= 480 ? 8 : 12;
+    var gap = 10;
+    var arrowRadius = 14;
+
+    // Apply max width constraint for small mobile screens
+    var maxAllowedWidth = Math.max(160, Math.floor(vw - margin * 2));
+    popup.style.maxWidth = maxAllowedWidth + "px";
+
+    // Read popup rendered dimensions (defensively bounded by maxAllowedWidth)
+    var popupWidth = Math.min(popup.offsetWidth, maxAllowedWidth);
+    var popupHeight = popup.offsetHeight;
+
+    // Available space above and below the target word (accounting for sticky navbar height)
+    var topBar = $(".gemini-top-bar");
+    var topBarHeight = (topBar && topBar.offsetHeight) ? topBar.offsetHeight : 56;
+    var safeTop = vpTop + topBarHeight;
+    var spaceAbove = btnRect.top - safeTop;
+    var spaceBelow = (vpTop + vh) - btnRect.bottom;
+    var placement = "top";
+
+    if (spaceAbove >= popupHeight + gap + margin) {
+      // Primary choice: above the character
+      placement = "top";
+    } else if (spaceBelow >= popupHeight + gap + margin) {
+      // Flip to below the character when top would be cut off
+      placement = "bottom";
+    } else {
+      // Screen is tight (e.g. mobile landscape): choose side with maximum space
+      placement = spaceAbove >= spaceBelow ? "top" : "bottom";
+    }
+
+    var computedTop;
+    if (placement === "top") {
+      computedTop = btnRect.top - popupHeight - gap;
+      // Clamp to top boundary below the sticky navbar
+      computedTop = Math.max(safeTop + margin, computedTop);
+    } else {
+      computedTop = btnRect.bottom + gap;
+      // Clamp to bottom boundary
+      computedTop = Math.min(vpTop + vh - popupHeight - margin, computedTop);
+    }
+
+    // Horizontal placement: center on word, clamped within viewport bounds
+    var targetCenterX = btnRect.left + btnRect.width / 2;
+    var idealLeft = targetCenterX - popupWidth / 2;
+    var minLeft = vpLeft + margin;
+    var maxLeft = vpLeft + vw - popupWidth - margin;
+    var clampedLeft = Math.max(minLeft, Math.min(idealLeft, maxLeft));
+
+    // Dynamic arrow positioning: point directly at word center, respecting card border-radius
+    var arrowLeft = targetCenterX - clampedLeft;
+    var minArrow = Math.min(arrowRadius, popupWidth / 2);
+    var maxArrow = Math.max(minArrow, popupWidth - arrowRadius);
+    var clampedArrowLeft = Math.max(minArrow, Math.min(arrowLeft, maxArrow));
+
+    // Update classes and styles
+    popup.classList.remove("placement-top", "placement-bottom");
+    popup.classList.add("placement-" + placement);
+
+    popup.style.left = Math.round(clampedLeft) + "px";
+    popup.style.top = Math.round(computedTop) + "px";
+    popup.style.setProperty("--arrow-left", Math.round(clampedArrowLeft) + "px");
+  }
+
   function openPopup(btn, item) {
     closePopup();
     var popup = document.createElement("div");
@@ -669,10 +844,8 @@
     popup.appendChild(py);
     popup.appendChild(en);
 
-    var host = $("#passage");
-    host.appendChild(popup);
-    popup.style.left = (btn.offsetLeft + btn.offsetWidth / 2) + "px";
-    popup.style.top = btn.offsetTop + "px";
+    document.body.appendChild(popup);
+    positionPopup(btn, popup);
 
     activePopup = popup;
     activeWord = btn;
@@ -680,11 +853,36 @@
     btn.setAttribute("aria-pressed", "true");
   }
 
+  function updatePinyinToggleButton() {
+    var btn = $("#pinyin-toggle");
+    if (!btn) return;
+    btn.setAttribute("aria-pressed", String(pinyinOn));
+    btn.classList.toggle("off", !pinyinOn);
+    var label = $("#pinyin-toggle-label");
+    if (label) {
+      label.textContent = pinyinOn ? "Pinyin On" : "Pinyin Off";
+    }
+  }
+
+  function setPinyinState(state) {
+    pinyinOn = !!state;
+    var host = $("#passage");
+    if (host) {
+      host.classList.toggle("pinyin-off", !pinyinOn);
+    }
+    updatePinyinToggleButton();
+    closePopup();
+    try {
+      localStorage.setItem("hanzina_pinyin_on", String(pinyinOn));
+    } catch (e) {}
+  }
+
   function renderPassage(seq) {
     var host = $("#passage");
     host.innerHTML = "";
     closePopup();
     host.classList.toggle("pinyin-off", !pinyinOn);
+    updatePinyinToggleButton();
 
     seq.forEach(function (item) {
       if (item.type === "punct") {
@@ -790,57 +988,259 @@
     }
   }
 
-  /* ----- User Name Modal ----- */
-  function initUserModal() {
-    var modal = $("#name-modal");
+  /* ----- Supabase Authentication Modal ----- */
+  function initAuthModal() {
+    var modal = $("#auth-modal");
     var profileCard = $("#user-profile-card");
-    var cancelBtn = $("#name-modal-cancel");
-    var saveBtn = $("#name-modal-save");
-    var input = $("#username-input");
+    if (!modal) return;
 
-    if (profileCard && modal) {
+    var guestView = $("#auth-guest-view");
+    var loggedInView = $("#auth-logged-in-view");
+
+    var tabSignin = $("#tab-btn-signin");
+    var tabSignup = $("#tab-btn-signup");
+    var signinForm = $("#auth-signin-form");
+    var signupForm = $("#auth-signup-form");
+
+    var signinError = $("#auth-signin-error");
+    var signupError = $("#auth-signup-error");
+
+    var signinCancel = $("#auth-signin-cancel");
+    var signupCancel = $("#auth-signup-cancel");
+    var profileClose = $("#auth-profile-close");
+    var signoutBtn = $("#auth-signout-btn");
+
+    function updateModalView() {
+      var user = getUser();
+      if (user.isLoggedIn && user.firstName !== "Learner") {
+        if (guestView) guestView.hidden = true;
+        if (loggedInView) loggedInView.hidden = false;
+        var pName = $("#auth-profile-username");
+        var pEmail = $("#auth-profile-email");
+        var pAvatar = $("#auth-profile-avatar");
+        if (pName) pName.textContent = user.fullName || user.firstName;
+        if (pEmail) pEmail.textContent = user.email || "";
+        if (pAvatar) pAvatar.textContent = (user.firstName || "U").charAt(0).toUpperCase();
+      } else {
+        if (guestView) guestView.hidden = false;
+        if (loggedInView) loggedInView.hidden = true;
+        showTab("signin");
+      }
+    }
+
+    function showTab(tab) {
+      if (signinError) signinError.hidden = true;
+      if (signupError) signupError.hidden = true;
+
+      if (tab === "signin") {
+        if (tabSignin) tabSignin.classList.add("active");
+        if (tabSignup) tabSignup.classList.remove("active");
+        if (signinForm) signinForm.hidden = false;
+        if (signupForm) signupForm.hidden = true;
+        var uInput = $("#auth-signin-username");
+        if (uInput) uInput.focus();
+      } else {
+        if (tabSignup) tabSignup.classList.add("active");
+        if (tabSignin) tabSignin.classList.remove("active");
+        if (signupForm) signupForm.hidden = false;
+        if (signinForm) signinForm.hidden = true;
+        var eInput = $("#auth-signup-email");
+        if (eInput) eInput.focus();
+      }
+    }
+
+    if (profileCard) {
       profileCard.addEventListener("click", function () {
-        var user = getUser();
-        if (input) input.value = user.fullName || user.firstName;
+        updateModalView();
         modal.showModal();
       });
     }
 
-    if (cancelBtn && modal) {
-      cancelBtn.addEventListener("click", function () {
+    if (tabSignin) {
+      tabSignin.addEventListener("click", function () {
+        showTab("signin");
+      });
+    }
+
+    if (tabSignup) {
+      tabSignup.addEventListener("click", function () {
+        showTab("signup");
+      });
+    }
+
+    if (signinCancel) {
+      signinCancel.addEventListener("click", function () {
         modal.close();
       });
     }
 
-    if (saveBtn && modal) {
-      saveBtn.addEventListener("click", function () {
-        var val = (input.value || "").trim();
-        if (val) {
-          var parts = val.split(/\s+/);
-          var firstName = parts[0];
-          saveUser({ fullName: val, firstName: firstName });
-          toast("success", "Name updated", "Welcome, " + firstName + "!");
-        }
+    if (signupCancel) {
+      signupCancel.addEventListener("click", function () {
         modal.close();
       });
     }
 
-    if (input) {
-      input.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          if (saveBtn) saveBtn.click();
-        }
+    if (profileClose) {
+      profileClose.addEventListener("click", function () {
+        modal.close();
       });
     }
 
-    // Prompt user on site load if username not saved
-    var current = getUser();
-    if (current.firstName === "Learner" && modal) {
-      modal.showModal();
+    // Sign In Submit: Login with Username & Password
+    if (signinForm) {
+      signinForm.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        if (signinError) signinError.hidden = true;
+
+        var username = ($("#auth-signin-username").value || "").trim();
+        var password = $("#auth-signin-password").value || "";
+        var submitBtn = $("#auth-signin-submit");
+
+        if (!username) {
+          signinError.textContent = "Please enter your username.";
+          signinError.hidden = false;
+          return;
+        }
+        if (!password) {
+          signinError.textContent = "Please enter your password.";
+          signinError.hidden = false;
+          return;
+        }
+
+        submitBtn.disabled = true;
+        var originalBtnText = submitBtn.textContent;
+        submitBtn.textContent = "Signing In...";
+
+        var sb = global.HanziNASupabase;
+        if (!sb || typeof sb.signIn !== "function") {
+          signinError.textContent = "Supabase service is not loaded.";
+          signinError.hidden = false;
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalBtnText;
+          return;
+        }
+
+        var res = await sb.signIn({ username: username, password: password });
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+
+        if (!res.success) {
+          signinError.textContent = res.error || "Failed to sign in.";
+          signinError.hidden = false;
+          return;
+        }
+
+        currentUser = {
+          id: res.user ? res.user.id : "user-" + Date.now(),
+          email: res.user ? res.user.email : "",
+          username: res.username || username
+        };
+        try {
+          localStorage.setItem("hanzina_user", JSON.stringify({ fullName: currentUser.username, firstName: currentUser.username, email: currentUser.email }));
+        } catch (err) {}
+        renderUserUI();
+        renderCTA();
+        syncHistoryWithSupabase();
+        toast("success", "Welcome back!", "Signed in as " + currentUser.username);
+        modal.close();
+      });
     }
 
-    // Help Modal
+    // Sign Up Submit: Signup with Email, Username, & Password
+    if (signupForm) {
+      signupForm.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        if (signupError) signupError.hidden = true;
+
+        var email = ($("#auth-signup-email").value || "").trim();
+        var username = ($("#auth-signup-username").value || "").trim();
+        var password = $("#auth-signup-password").value || "";
+        var submitBtn = $("#auth-signup-submit");
+
+        if (!email) {
+          signupError.textContent = "Please enter your email.";
+          signupError.hidden = false;
+          return;
+        }
+        if (!username) {
+          signupError.textContent = "Please choose a username.";
+          signupError.hidden = false;
+          return;
+        }
+        if (username.length < 3) {
+          signupError.textContent = "Username must be at least 3 characters.";
+          signupError.hidden = false;
+          return;
+        }
+        if (!password || password.length < 6) {
+          signupError.textContent = "Password must be at least 6 characters.";
+          signupError.hidden = false;
+          return;
+        }
+
+        submitBtn.disabled = true;
+        var originalBtnText = submitBtn.textContent;
+        submitBtn.textContent = "Creating Account...";
+
+        var sb = global.HanziNASupabase;
+        if (!sb || typeof sb.signUp !== "function") {
+          signupError.textContent = "Supabase service is not loaded.";
+          signupError.hidden = false;
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalBtnText;
+          return;
+        }
+
+        var res = await sb.signUp({ email: email, username: username, password: password });
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+
+        if (!res.success) {
+          signupError.textContent = res.error || "Failed to create account.";
+          signupError.hidden = false;
+          return;
+        }
+
+        currentUser = {
+          id: res.user ? res.user.id : "user-" + Date.now(),
+          email: email,
+          username: username
+        };
+        try {
+          localStorage.setItem("hanzina_user", JSON.stringify({ fullName: username, firstName: username, email: email }));
+        } catch (err) {}
+        renderUserUI();
+        renderCTA();
+        syncHistoryWithSupabase();
+        toast("success", "Account Created!", "Welcome to HanziNA, " + username + "!");
+        modal.close();
+      });
+    }
+
+    // Sign Out
+    if (signoutBtn) {
+      signoutBtn.addEventListener("click", async function () {
+        var sb = global.HanziNASupabase;
+        if (sb && typeof sb.signOut === "function") {
+          await sb.signOut();
+        }
+        currentUser = null;
+        try {
+          localStorage.removeItem("hanzina_user");
+        } catch (err) {}
+        renderUserUI();
+        renderCTA();
+        toast("info", "Signed out", "You have signed out of your account.");
+        modal.close();
+      });
+    }
+
+    // Initial check of Supabase session
+    checkUserSession();
+  }
+
+  /* ----- Help Modal ----- */
+  function initHelpModal() {
     var helpModal = $("#help-modal");
     var chipHow = $("#chip-how-it-works");
     var helpClose = $("#help-modal-close");
@@ -864,7 +1264,9 @@
     cycleCTA();
     initSidebar();
     renderHistory();
-    initUserModal();
+    syncHistoryWithSupabase();
+    initAuthModal();
+    initHelpModal();
     hideMappingField();
     updateGenerateButtonState();
 
@@ -970,11 +1372,34 @@
       showView("#input-view");
     });
 
+    // Pinyin layer toggle in reading session
+    var pinyinToggleBtn = $("#pinyin-toggle");
+    if (pinyinToggleBtn) {
+      pinyinToggleBtn.addEventListener("click", function () {
+        setPinyinState(!pinyinOn);
+      });
+    }
 
-    // Dismiss active popup when clicking outside
+
+    // Dismiss active popup when clicking outside (allows clicking inside tooltip to copy/select text)
     document.addEventListener("click", function (e) {
-      if (activePopup && !e.target.closest(".word")) closePopup();
+      if (activePopup && !e.target.closest(".word") && !e.target.closest(".char-popup")) closePopup();
     });
+
+    // Real-time repositioning on window scroll / resize to maintain anchor alignment
+    var repositionActivePopup = function () {
+      if (activePopup && activeWord) {
+        positionPopup(activeWord, activePopup);
+      }
+    };
+
+    window.addEventListener("scroll", repositionActivePopup, { passive: true });
+    window.addEventListener("resize", repositionActivePopup, { passive: true });
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("scroll", repositionActivePopup, { passive: true });
+      window.visualViewport.addEventListener("resize", repositionActivePopup, { passive: true });
+    }
 
     // Search filter in history
     var searchInput = $("#history-search-input");
@@ -985,6 +1410,21 @@
     }
 
     updateCounters();
+    updatePinyinToggleButton();
   });
+
+  if (typeof window !== "undefined") {
+    window.__hanzina = {
+      setPinyinState: setPinyinState,
+      getPinyinState: function () { return pinyinOn; },
+      positionPopup: positionPopup,
+      openPopup: openPopup,
+      closePopup: closePopup,
+      syncHistoryWithSupabase: syncHistoryWithSupabase,
+      getUser: getUser,
+      checkUserSession: checkUserSession,
+      initAuthModal: initAuthModal
+    };
+  }
 
 })(typeof window !== "undefined" ? window : this);
