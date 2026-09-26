@@ -6,10 +6,10 @@
   <title>HanziNA — Learner Controlled Chinese Reading</title>
   <meta name="description" content="HanziNA: Learner-controlled Chinese reading system with progressive disclosure and Material Design 3 Gemini interface." />
 
-  <!-- Google Fonts: Roboto Flex, Roboto, Noto Serif SC, Material Symbols -->
+  <!-- Google Fonts: Roboto Flex, Roboto, Noto Sans SC, Material Symbols -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&family=Roboto+Flex:wght@400;500;600;700&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Roboto+Flex:wght@400;500;600;700&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
 
   <!-- Material Design 3 Gemini-style Stylesheet -->
@@ -70,6 +70,9 @@
           </div>
         </div>
         <div class="sidebar-footer-actions">
+          <button type="button" class="sidebar-icon-btn" id="openai-settings-btn" title="OpenAI API Settings" aria-label="OpenAI API Settings">
+            <span class="material-symbols-outlined">key</span>
+          </button>
           <button type="button" class="sidebar-icon-btn" id="theme-toggle" title="Toggle Light/Dark Theme" aria-label="Toggle theme">
             <span class="material-symbols-outlined" id="theme-icon">light_mode</span>
           </button>
@@ -134,6 +137,13 @@
 
                     <!-- Right Actions in Pill -->
                     <div class="pill-actions-right">
+                      <!-- AI Auto-Generate Mapping Button -->
+                      <button type="button" class="pill-action-btn pill-btn-ai" id="ai-generate-btn" title="Auto-generate Word Mapping with OpenAI" aria-label="Auto-generate Word Mapping with OpenAI">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="action-btn-svg" aria-hidden="true">
+                          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/>
+                        </svg>
+                      </button>
+
                       <!-- Copy Prompt Button (Styled like arrow button with clipboard SVG) -->
                       <button type="button" class="pill-action-btn pill-btn-copy" id="copy-prompt-btn" title="Copy AI prompt for Word Mapping" aria-label="Copy AI prompt for Word Mapping">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="action-btn-svg" aria-hidden="true">
@@ -144,8 +154,8 @@
                         </svg>
                       </button>
 
-                      <!-- Submit / Generate Reading Button (Disabled until mapping is pasted) -->
-                      <button type="submit" class="pill-action-btn pill-btn-send" id="generate-btn" title="Paste word mapping to generate reading" aria-label="Generate Reading session" disabled>
+                      <!-- Submit / Generate Reading Button -->
+                      <button type="submit" class="pill-action-btn pill-btn-send" id="generate-btn" title="Generate Reading session" aria-label="Generate Reading session">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="action-btn-svg" aria-hidden="true">
                           <path d="m5 12 7-7 7 7"/>
                           <path d="M12 19V5"/>
@@ -336,10 +346,46 @@
 
 
 
+  <!-- OpenAI Settings Modal -->
+  <dialog id="openai-modal" class="gemini-dialog">
+    <div class="dialog-content">
+      <h3 class="dialog-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px; color: var(--md-sys-color-primary);" aria-hidden="true">
+          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/>
+        </svg>
+        OpenAI Integration Settings
+      </h3>
+      <div class="dialog-body-text">
+        <p>Connect your OpenAI API Key to automatically generate occurrence-ordered word mappings for any Chinese text without manual prompt copying.</p>
+
+        <div style="margin-top: 14px;">
+          <label for="openai-key-input" style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 6px;">OpenAI API Key</label>
+          <input type="password" id="openai-key-input" class="gemini-search-textarea" placeholder="sk-proj-..." style="width: 100%; padding: 10px 14px; font-family: monospace; font-size: 0.9rem;" />
+          <p style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant); margin-top: 4px;">Your API key is stored locally in your browser (`localStorage`) and sent directly to OpenAI.</p>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <label for="openai-model-select" style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 6px;">Model Selection</label>
+          <select id="openai-model-select" class="gemini-search-textarea" style="width: 100%; padding: 10px 14px; font-size: 0.9rem;">
+            <option value="gpt-4o-mini">gpt-4o-mini (Recommended - Fast & Low Cost)</option>
+            <option value="gpt-4o">gpt-4o (High Precision)</option>
+            <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+          </select>
+        </div>
+      </div>
+      <div class="dialog-actions" style="margin-top: 20px;">
+        <button type="button" class="btn-dialog-cancel" id="openai-modal-close">Cancel</button>
+        <button type="button" class="btn-dialog-save" id="openai-modal-save">Save Settings</button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Supabase Official Browser Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Supabase Integration Service -->
   <script src="supabase.js"></script>
+  <!-- OpenAI Integration Service -->
+  <script src="openai.js"></script>
   <!-- Modularized Application Logic -->
   <script src="app.js"></script>
 </body>

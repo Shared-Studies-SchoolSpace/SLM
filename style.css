@@ -49,8 +49,8 @@
 
   /* Typography */
   --md-sys-typescale-font-brand: "Roboto Flex", "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --md-sys-typescale-font-plain: "Roboto Flex", "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-zh: "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
+  --font-zh: "Roboto Flex", "Roboto", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-reading: "Roboto Flex", "Roboto", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-mono: "SF Mono", "JetBrains Mono", Consolas, monospace;
 
   /* Shapes */
@@ -977,26 +977,68 @@ html, body {
   color: var(--md-sys-color-primary);
 }
 
+/* AI Auto-Generate Button */
+.pill-btn-ai {
+  background-color: var(--md-sys-color-tertiary-container);
+  color: var(--md-sys-color-on-tertiary-container);
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.pill-btn-ai:hover {
+  background-color: var(--md-sys-color-tertiary);
+  color: var(--md-sys-color-on-tertiary);
+  transform: scale(1.06);
+  box-shadow: 0 0 12px rgba(187, 134, 252, 0.4);
+}
+
+.pill-btn-ai.loading .action-btn-svg {
+  animation: aiRotate 1.2s infinite linear;
+}
+
+@keyframes aiRotate {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.15); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
 /* Send / Generate Reading Session button: solid primary */
 .pill-btn-send {
   background-color: var(--md-sys-color-primary);
   color: var(--md-sys-color-on-primary);
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), background-color 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
 }
 
-.pill-btn-send:hover:not(:disabled) {
-  filter: brightness(1.08);
+.pill-btn-send:hover {
+  filter: brightness(1.15);
+  transform: scale(1.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.pill-btn-send:active {
+  transform: scale(0.96);
+}
+
+.pill-btn-send.active {
+  background-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  opacity: 1;
+}
+
+.pill-btn-send:not(.active) {
+  opacity: 0.85;
 }
 
 /* MD3 Disabled State for Generate Reading Button */
 .pill-action-btn:disabled,
 .pill-action-btn[disabled] {
-  opacity: 0.38 !important;
-  cursor: not-allowed !important;
-  pointer-events: none !important;
+  opacity: 0.5 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
   background-color: var(--md-sys-color-surface-container-highest) !important;
   color: var(--md-sys-color-on-surface-variant) !important;
   box-shadow: none !important;
-  transform: none !important;
 }
 
 /* Error Panel */
@@ -1085,6 +1127,7 @@ html, body {
   flex-direction: column;
   padding: var(--md-sys-spacing-4) var(--md-sys-spacing-6) var(--md-sys-spacing-10);
   align-items: center;
+  font-family: var(--font-reading);
 }
 
 .reading-container {

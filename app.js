@@ -152,11 +152,149 @@
     return seq;
   }
 
+  /**
+   * Common dictionary for instant fallback character/word mapping
+   */
+  var COMMON_DICT = {
+    "太": ["tài", "great / supreme"],
+    "初": ["chū", "beginning / initial"],
+    "有": ["yǒu", "was / have / exist"],
+    "道": ["dào", "the Word / way / path"],
+    "与": ["yǔ", "with / and"],
+    "神": ["shén", "God / spirit"],
+    "同": ["tóng", "same / together"],
+    "在": ["zài", "in / at / exist"],
+    "就": ["jiù", "then / precisely / at once"],
+    "是": ["shì", "is / to be"],
+    "我": ["wǒ", "I / me"],
+    "你": ["nǐ", "you"],
+    "他": ["tā", "he / him"],
+    "她": ["tā", "she / her"],
+    "它": ["tā", "it"],
+    "们": ["men", "plural suffix"],
+    "这": ["zhè", "this"],
+    "那": ["nà", "that"],
+    "的": ["de", "possessive / structural particle"],
+    "了": ["le", "completed action particle"],
+    "不": ["bù", "no / not"],
+    "人": ["rén", "person / human"],
+    "一": ["yī", "one"],
+    "上": ["shàng", "above / up"],
+    "中": ["zhōng", "middle / China"],
+    "大": ["dà", "big / large"],
+    "来": ["lái", "come"],
+    "到": ["dào", "arrive / to"],
+    "国": ["guó", "country / nation"],
+    "生": ["shēng", "life / born"],
+    "年": ["nián", "year"],
+    "着": ["zhe", "aspect particle"],
+    "和": ["hé", "and / with"],
+    "要": ["yào", "want / need"],
+    "出": ["chū", "go out / produce"],
+    "也": ["yě", "also / too"],
+    "得": ["de", "obtain / particle"],
+    "里": ["lǐ", "inside / in"],
+    "后": ["hòu", "after / behind"],
+    "自": ["zì", "self / from"],
+    "以": ["yǐ", "by means of / so as to"],
+    "会": ["huì", "can / meet / will"],
+    "家": ["jiā", "home / family"],
+    "可": ["kě", "can / may"],
+    "下": ["xià", "down / under"],
+    "而": ["ér", "and / yet"],
+    "过": ["guò", "pass / cross"],
+    "天": ["tiān", "sky / day / heaven"],
+    "去": ["qù", "go"],
+    "能": ["néng", "can / capable"],
+    "对": ["duì", "right / to / towards"],
+    "小": ["xiǎo", "small / little"],
+    "多": ["duō", "many / much"],
+    "然": ["rán", "so / correct"],
+    "于": ["yú", "at / in / regarding"],
+    "心": ["xīn", "heart / mind"],
+    "学": ["xué", "study / learn"],
+    "之": ["zhī", "possessive / particle"],
+    "都": ["dōu", "all / both"],
+    "好": ["hǎo", "good / well"],
+    "看": ["kàn", "look / see"],
+    "起": ["qǐ", "rise / start"],
+    "发": ["fā", "send / issue / emerge"],
+    "当": ["dāng", "when / serve as"],
+    "没": ["méi", "not have"],
+    "成": ["chéng", "become / complete"],
+    "只": ["zhǐ", "only / just"],
+    "如": ["rú", "as if / like"],
+    "事": ["shì", "thing / affair"],
+    "把": ["bǎ", "hold / particle"],
+    "还": ["hái", "still / yet"],
+    "用": ["yòng", "use"],
+    "第": ["dì", "ordinal prefix"],
+    "样": ["yàng", "manner / appearance"],
+    "想": ["xiǎng", "think / miss"],
+    "作": ["zuò", "make / write"],
+    "种": ["zhǒng", "kind / type"],
+    "开": ["kāi", "open / start"],
+    "美": ["měi", "beautiful"],
+    "爱": ["ài", "love"],
+    "日": ["rì", "sun / day"],
+    "月": ["yuè", "moon / month"],
+    "光": ["guāng", "light / shine"],
+    "明": ["míng", "bright / clear"],
+    "水": ["shuǐ", "water"],
+    "山": ["shān", "mountain"],
+    "文": ["wén", "literature / writing"],
+    "字": ["zì", "character / word"],
+    "言": ["yán", "speech / word"],
+    "语": ["yǔ", "language / words"],
+    "信": ["xìn", "faith / trust / letter"]
+  };
+
+  /**
+   * Extract inline mapping tokens from text if user formatted text like Hanzi(pinyin,english)
+   */
+  function extractInlineMapping(textRaw) {
+    if (!textRaw) return "";
+    var ENTRY_RE = /([^\s()]+)\(([^()]*)\)/g;
+    var matches = [];
+    var m;
+    while ((m = ENTRY_RE.exec(textRaw)) !== null) {
+      matches.push(m[0]);
+    }
+    return matches.join(" ");
+  }
+
+  /**
+   * Auto-generate fallback mapping entries for CJK characters if mapping input is empty
+   */
+  function generateFallbackMapping(text) {
+    var hanziChars = extractHanzi(text);
+    if (!hanziChars) return "";
+    var entries = [];
+    var i = 0;
+    while (i < hanziChars.length) {
+      var char1 = hanziChars[i];
+      var char2 = hanziChars[i + 1];
+      var pair = char1 + (char2 || "");
+      if (char2 && COMMON_DICT[pair]) {
+        var info = COMMON_DICT[pair];
+        entries.push(pair + "(" + info[0] + "," + info[1] + ")");
+        i += 2;
+        continue;
+      }
+      var singleInfo = COMMON_DICT[char1] || ["pīnyīn", "character"];
+      entries.push(char1 + "(" + singleInfo[0] + "," + singleInfo[1] + ")");
+      i++;
+    }
+    return entries.join(" ");
+  }
+
   var core = {
     parseMapping: parseMapping,
     extractHanzi: extractHanzi,
     validateInputs: validateInputs,
-    buildSequence: buildSequence
+    buildSequence: buildSequence,
+    extractInlineMapping: extractInlineMapping,
+    generateFallbackMapping: generateFallbackMapping
   };
 
   // Node export for testing
@@ -573,23 +711,29 @@
   var closeMappingDrawer = hideMappingField;
   var toggleMappingDrawer = toggleMappingField;
 
-  /* ----- Generate Button State (Disabled until mapping is pasted/entered) ----- */
+  /* ----- Generate Button State ----- */
   function updateGenerateButtonState() {
+    var textInput = $("#chinese-text");
     var mappingInput = $("#mapping-input");
+    var t = (textInput ? textInput.value : "").trim();
     var m = (mappingInput ? mappingInput.value : "").trim();
     var btn = $("#generate-btn");
     if (!btn) return;
 
+    btn.removeAttribute("disabled");
+    btn.disabled = false;
+
+    var hasText = t.length > 0;
     var hasMapping = m.length > 0;
-    btn.disabled = !hasMapping;
-    if (hasMapping) {
-      btn.removeAttribute("disabled");
+
+    if (hasText || hasMapping) {
+      btn.classList.add("active");
       btn.title = "Generate Reading Session";
       btn.setAttribute("aria-disabled", "false");
     } else {
-      btn.setAttribute("disabled", "disabled");
-      btn.title = "Paste word mapping to generate reading";
-      btn.setAttribute("aria-disabled", "true");
+      btn.classList.remove("active");
+      btn.title = "Paste Chinese text to generate reading";
+      btn.setAttribute("aria-disabled", "false");
     }
   }
 
@@ -928,14 +1072,172 @@
     });
   }
 
-  function generateReading(shouldSave) {
+  /* ----- OpenAI Integration & Automated Mapping ----- */
+  function openOpenAIModal() {
+    var modal = $("#openai-modal");
+    var keyInput = $("#openai-key-input");
+    var modelSelect = $("#openai-model-select");
+    var api = global.HanziNAOpenAI;
+
+    if (keyInput && api) {
+      keyInput.value = api.getAPIKey() || "";
+    }
+    if (modelSelect && api) {
+      modelSelect.value = api.getModel() || "gpt-4o-mini";
+    }
+    if (modal) {
+      modal.showModal();
+    }
+  }
+
+  function initOpenAIModal() {
+    var modal = $("#openai-modal");
+    var btnOpen = $("#openai-settings-btn");
+    var btnClose = $("#openai-modal-close");
+    var btnSave = $("#openai-modal-save");
+    var api = global.HanziNAOpenAI;
+
+    if (btnOpen) {
+      btnOpen.addEventListener("click", openOpenAIModal);
+    }
+
+    if (btnClose && modal) {
+      btnClose.addEventListener("click", function () {
+        modal.close();
+      });
+    }
+
+    if (btnSave && modal) {
+      btnSave.addEventListener("click", function () {
+        var keyInput = $("#openai-key-input");
+        var modelSelect = $("#openai-model-select");
+
+        var key = keyInput ? keyInput.value.trim() : "";
+        var model = modelSelect ? modelSelect.value : "gpt-4o-mini";
+
+        if (api) {
+          api.setAPIKey(key);
+          api.setModel(model);
+        }
+
+        modal.close();
+        if (key) {
+          toast("success", "Settings saved", "OpenAI API Key and model preferences saved.");
+        } else {
+          toast("info", "API Key cleared", "OpenAI API Key has been removed.");
+        }
+      });
+    }
+  }
+
+  async function handleAIGenerateMapping() {
+    var textInput = $("#chinese-text");
+    var mappingInput = $("#mapping-input");
+    var aiBtn = $("#ai-generate-btn");
+    var text = (textInput ? textInput.value : "").trim();
+
+    if (!text) {
+      toast("info", "Please enter Chinese text first", "Paste or type your Chinese passage into the field before generating mapping with AI.");
+      if (textInput) textInput.focus();
+      return;
+    }
+
+    var api = global.HanziNAOpenAI;
+    var apiKey = api ? api.getAPIKey() : "";
+
+    if (!apiKey) {
+      openOpenAIModal();
+      toast("info", "OpenAI API Key required", "Please enter your OpenAI API key to use automated AI mapping generation.");
+      return;
+    }
+
+    if (aiBtn) aiBtn.classList.add("loading");
+    toast("info", "Generating AI mapping...", "Calling OpenAI to segment text and generate occurrence-ordered word mapping...");
+
+    try {
+      var mapping = await api.generateOpenAIMapping(text);
+      if (mappingInput) {
+        mappingInput.value = mapping;
+        updateCounters();
+        showMappingField(true);
+      }
+      toast("success", "AI Word Mapping Ready", "Generated occurrence-ordered word mapping using OpenAI.");
+      generateReading(true);
+    } catch (err) {
+      var msg = err.message || String(err);
+      if (msg.indexOf("OPENAI_API_KEY_MISSING") !== -1 || msg.indexOf("INVALID_API_KEY") !== -1) {
+        openOpenAIModal();
+        toast("error", "Invalid API Key", "Your OpenAI API key is missing or invalid. Please check your settings.");
+      } else if (msg.indexOf("RATE_LIMIT_EXCEEDED") !== -1) {
+        toast("error", "Rate limit exceeded", "OpenAI API rate limit exceeded. Please check your account quota.");
+      } else {
+        toast("error", "AI generation failed", "Could not generate mapping with OpenAI: " + msg);
+      }
+    } finally {
+      if (aiBtn) aiBtn.classList.remove("loading");
+    }
+  }
+
+  async function generateReading(shouldSave) {
     if (shouldSave === undefined) shouldSave = true;
 
-    var text = $("#chinese-text").value;
-    var mapping = $("#mapping-input").value;
-    $("#error-panel").hidden = true;
+    var textInput = $("#chinese-text");
+    var mappingInput = $("#mapping-input");
+    var rawText = (textInput ? textInput.value : "").trim();
+    var rawMapping = (mappingInput ? mappingInput.value : "").trim();
+    var errorPanel = $("#error-panel");
+    if (errorPanel) errorPanel.hidden = true;
 
-    var errors = validateInputs(text, mapping);
+    // Check if rawText contains inline mapping tokens Hanzi(pinyin,english)
+    var text = rawText;
+    var inlineMap = extractInlineMapping(rawText);
+    if (inlineMap && !rawMapping) {
+      rawMapping = inlineMap;
+      text = rawText.replace(/([^\s()]+)\([^()]*\)/g, "$1").trim();
+    }
+
+    if (!text) {
+      toast("info", "Please enter Chinese text first", "Paste or type your Chinese passage into the field before generating a reading session.");
+      if (textInput) textInput.focus();
+      return;
+    }
+
+    // Auto-generate mapping with OpenAI if API key is set and mapping is missing
+    var api = global.HanziNAOpenAI;
+    var apiKey = api ? api.getAPIKey() : "";
+
+    if (!rawMapping && apiKey) {
+      try {
+        toast("info", "Generating AI mapping...", "Calling OpenAI to segment text and generate word mapping...");
+        rawMapping = await api.generateOpenAIMapping(text);
+        if (mappingInput) {
+          mappingInput.value = rawMapping;
+          updateCounters();
+        }
+      } catch (err) {
+        console.warn("OpenAI auto-generation failed, falling back to dictionary:", err);
+      }
+    }
+
+    // Fallback to dictionary mapping if mapping is still missing
+    if (!rawMapping) {
+      rawMapping = generateFallbackMapping(text);
+      if (mappingInput) {
+        mappingInput.value = rawMapping;
+        updateCounters();
+      }
+    }
+
+    var errors = validateInputs(text, rawMapping);
+    if (errors.length) {
+      var fallback = generateFallbackMapping(text);
+      if (fallback) {
+        rawMapping = fallback;
+        if (mappingInput) mappingInput.value = rawMapping;
+        errors = validateInputs(text, rawMapping);
+      }
+    }
+
     if (errors.length) {
       showErrors(errors);
       openMappingDrawer();
@@ -943,7 +1245,7 @@
       return;
     }
 
-    var parsed = parseMapping(mapping);
+    var parsed = parseMapping(rawMapping);
     var seq = buildSequence(text, parsed.entries);
     renderPassage(seq);
 
@@ -955,7 +1257,7 @@
     showView("#reading-view");
 
     if (shouldSave) {
-      saveHistoryItem(text, mapping);
+      saveHistoryItem(text, rawMapping);
     }
 
     toast("success", "Reading session ready",
@@ -1267,55 +1569,72 @@
     syncHistoryWithSupabase();
     initAuthModal();
     initHelpModal();
+    initOpenAIModal();
     hideMappingField();
     updateGenerateButtonState();
 
+    // AI Generate button
+    var aiBtn = $("#ai-generate-btn");
+    if (aiBtn) {
+      aiBtn.addEventListener("click", handleAIGenerateMapping);
+    }
 
-    // Form submission
-    $("#input-form").addEventListener("submit", function (e) {
-      e.preventDefault();
-      var btn = $("#generate-btn");
-      if (btn && btn.disabled) {
-        var mappingVal = ($("#mapping-input").value || "").trim();
-        if (!mappingVal) {
-          showMappingField(true);
-          toast("info", "Word mapping required", "Paste your word mapping first to generate the reading session.");
-          return;
-        }
-      }
-      generateReading(true);
-    });
 
-    // Enter key inside Chinese textarea submits if mapping is present or reveals mapping
-    $("#chinese-text").addEventListener("keydown", function (e) {
-      if (e.key === "Enter" && !e.shiftKey) {
+    // Direct click listener on Arrow Up Generate Button (#generate-btn)
+    var genBtn = $("#generate-btn");
+    if (genBtn) {
+      genBtn.addEventListener("click", function (e) {
         e.preventDefault();
-        var mappingVal = ($("#mapping-input").value || "").trim();
-        if (mappingVal) {
+        generateReading(true);
+      });
+    }
+
+    // Form submission listener
+    var inputForm = $("#input-form");
+    if (inputForm) {
+      inputForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        generateReading(true);
+      });
+    }
+
+    // Enter key inside Chinese textarea submits text to generate reading view
+    var chineseTextEl = $("#chinese-text");
+    if (chineseTextEl) {
+      chineseTextEl.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
           generateReading(true);
-        } else {
-          showMappingField(true);
-          toast("info", "Word mapping required", "Click 'Copy Prompt' to generate mappings with Gemini or ChatGPT, then paste here.");
         }
-      }
-    });
+      });
 
-    // Input listeners
-    $("#chinese-text").addEventListener("input", function () {
-      updateCounters();
-    });
-
-    $("#mapping-input").addEventListener("input", function () {
-      updateCounters();
-      updateGenerateButtonState();
-    });
-
-    $("#mapping-input").addEventListener("paste", function () {
-      setTimeout(function () {
+      chineseTextEl.addEventListener("input", function () {
         updateCounters();
         updateGenerateButtonState();
-      }, 10);
-    });
+      });
+
+      chineseTextEl.addEventListener("paste", function () {
+        setTimeout(function () {
+          updateCounters();
+          updateGenerateButtonState();
+        }, 10);
+      });
+    }
+
+    var mappingInputEl = $("#mapping-input");
+    if (mappingInputEl) {
+      mappingInputEl.addEventListener("input", function () {
+        updateCounters();
+        updateGenerateButtonState();
+      });
+
+      mappingInputEl.addEventListener("paste", function () {
+        setTimeout(function () {
+          updateCounters();
+          updateGenerateButtonState();
+        }, 10);
+      });
+    }
 
     // Toggle mapping field button ("+")
     $("#toggle-mapping-btn").addEventListener("click", toggleMappingField);
