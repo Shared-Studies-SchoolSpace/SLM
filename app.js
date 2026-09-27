@@ -1651,7 +1651,8 @@
         setTimeout(function () {
           updateCounters();
           updateGenerateButtonState();
-        }, 10);
+          handleAIGenerateMapping(); // ponytail: auto-fire on paste
+        }, 50);
       });
     }
 
