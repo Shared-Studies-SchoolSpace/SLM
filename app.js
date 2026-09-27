@@ -1130,11 +1130,9 @@
     var aiBtn = $("#ai-generate-btn");
     var text = (textInput ? textInput.value : "").trim();
 
-    if (!text) {
-      toast("info", "Please enter Chinese text first", "Paste or type your Chinese passage into the field before generating mapping with AI.");
-      if (textInput) textInput.focus();
-      return;
-    }
+    if (!text) return; // ponytail: silent bail if no text on paste
+
+    if (aiBtn) aiBtn.classList.add("loading"); // spin immediately
 
     var api = global.HanziNAOpenAI;
     if (global.HanziNAEnv && typeof global.HanziNAEnv.loadEnv === "function") {
@@ -1143,11 +1141,11 @@
     var apiKey = api ? api.getAPIKey() : "";
 
     if (!apiKey) {
+      if (aiBtn) aiBtn.classList.remove("loading");
       toast("error", "OpenAI API Key Missing", "OPENAI_API_KEY is not configured in the environment (.env).");
       return;
     }
 
-    if (aiBtn) aiBtn.classList.add("loading");
     toast("info", "Generating AI mapping...", "Calling OpenAI to segment text and generate occurrence-ordered word mapping...");
 
     try {
