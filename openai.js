@@ -60,6 +60,12 @@
       "EXAMPLE 2 OUTPUT:\n" +
       "床(chuáng,bed) 前(qián,in front of) 明月(míngyuè,bright moon) 光(guāng,light) 疑(yí,suspect) 是(shì,be) 地上(dìshàng,on the ground) 霜(shuāng,frost)\n" +
       "@@@\n" +
+      "Always output the accurate output in the expected format, ensure that you do not output e.g 光(pinyin,character), but the accurate translation.\n\n" +
+      "EXAMPLE 3 INPUT: 床前明月光，疑是地上霜。\n" +
+      "EXAMPLE 3 OUTPUT:\n" +
+      "床(chuáng,bed) 前(qián,in front of) 明月(míngyuè,bright moon) 光(guāng,light) 疑(yí,suspect) 是(shì,be) 地上(dìshàng,on the ground) 霜(shuāng,frost)\n" +
+      "@@@\n" +
+      "Always output the accurate output in the expected format, ensure that you do not output e.g 光(pinyin,character), but the accurate translation.\n\n" +
       "Bright moonlight falls before my bed — I wonder if it is frost upon the ground.\n\n" +
       "Chinese text:\n" +
       "<INPUT_TEXT>\n" +
@@ -124,8 +130,8 @@
     }
 
     var env = (typeof window !== "undefined" && window.__ENV__) ||
-              (typeof global !== "undefined" && global.__ENV__) ||
-              (typeof process !== "undefined" && process.env) || {};
+      (typeof global !== "undefined" && global.__ENV__) ||
+      (typeof process !== "undefined" && process.env) || {};
 
     return (env.OPENAI_API_KEY || "").trim();
   }
@@ -140,8 +146,8 @@
     }
 
     var env = (typeof window !== "undefined" && window.__ENV__) ||
-              (typeof global !== "undefined" && global.__ENV__) ||
-              (typeof process !== "undefined" && process.env) || {};
+      (typeof global !== "undefined" && global.__ENV__) ||
+      (typeof process !== "undefined" && process.env) || {};
 
     return (env.OPENAI_MODEL || DEFAULT_MODEL).trim();
   }
@@ -168,7 +174,7 @@
     }
 
     var apiKey = (options.apiKey || getAPIKey()).trim();
-    var model  = (options.model  || getModel()).trim();
+    var model = (options.model || getModel()).trim();
 
     if (!apiKey) {
       throw new Error("OPENAI_API_KEY_MISSING");
@@ -198,7 +204,7 @@
 
     if (!response.ok) {
       var errData = {};
-      try { errData = await response.json(); } catch (e) {}
+      try { errData = await response.json(); } catch (e) { }
       var errMsg = (errData.error && errData.error.message) || ("HTTP " + response.status);
 
       if (response.status === 401) {
@@ -218,23 +224,23 @@
     }
 
     // Parse two-part plain text response: <mapping>\n@@@\n<translation>
-    var mapping     = "";
+    var mapping = "";
     var translation = "";
     var cleanContent = content.replace(/```[a-z]*\n?/gi, "").replace(/```/g, "").trim();
 
     var delimIdx = cleanContent.indexOf("@@@");
     if (delimIdx !== -1) {
-      mapping     = cleanContent.slice(0, delimIdx).trim();
+      mapping = cleanContent.slice(0, delimIdx).trim();
       translation = cleanContent.slice(delimIdx + 3).trim();
     } else {
       // Fallback: check if model returned JSON
       try {
-        var parsed  = JSON.parse(cleanContent);
-        mapping     = (parsed.mapping     || "").trim();
+        var parsed = JSON.parse(cleanContent);
+        mapping = (parsed.mapping || "").trim();
         translation = (parsed.translation || "").trim();
       } catch (e) {
         // Fallback: treat whole content as mapping
-        mapping     = cleanContent;
+        mapping = cleanContent;
         translation = "";
       }
     }
