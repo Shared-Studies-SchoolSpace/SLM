@@ -35,33 +35,8 @@ class handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         req_path = parsed.path
 
-        # 1. API Health & Status Endpoint
-        if req_path in ("/api/health", "/api/health/", "/api", "/api/"):
-            data = {
-                "status": "healthy",
-                "service": "HanziNA Lightweight Python Server",
-                "version": "1.0.0",
-                "python_version": sys.version.split()[0],
-                "platform": "Vercel Python Serverless Runtime",
-                "configured": {
-                    "supabase": bool(
-                        os.environ.get("SUPABASE_URL")
-                        or os.environ.get("PUBLIC_SUPABASE_URL")
-                    ),
-                    "openai": bool(os.environ.get("OPENAI_API_KEY")),
-                },
-            }
-            body = json.dumps(data, indent=2).encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(body)
-            return
-
-        # 2. Environment Configuration Endpoint (feeds Vercel env settings to frontend)
-        if req_path in ("/api/env", "/api/env/"):
+        # 1. Environment Configuration & Status Endpoint (supports /api/env and /api)
+        if req_path in ("/api/env", "/api/env/", "/api", "/api/"):
             env_data = {
                 "SUPABASE_URL": os.environ.get("SUPABASE_URL")
                 or os.environ.get("PUBLIC_SUPABASE_URL")
@@ -72,10 +47,12 @@ class handler(BaseHTTPRequestHandler):
                 "SUPABASE_TABLE": os.environ.get("SUPABASE_TABLE", "reading_sessions"),
                 "OPENAI_API_KEY": os.environ.get("OPENAI_API_KEY", ""),
                 "OPENAI_MODEL": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+                "status": "healthy",
+                "service": "HanziNA Lightweight Python Server",
             }
-            body = json.dumps(env_data).encode("utf-8")
+            body = json.dumps(env_data, indent=2).encode("utf-8")
             self.send_response(200)
-            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")

@@ -11,7 +11,7 @@
     SUPABASE_ANON_KEY: "sb_publishable_ejODqwhAMKFrgXlvXMY-Ag_YWKaip6g",
     SUPABASE_TABLE: "reading_sessions",
     OPENAI_API_KEY: "",
-    OPENAI_MODEL: "gpt-4o-mini"
+    OPENAI_MODEL: "gpt-6-astra"
   };
 
   /**
@@ -61,7 +61,7 @@
           if (lsSbKey) merged.SUPABASE_ANON_KEY = lsSbKey;
           if (lsOaiKey) merged.OPENAI_API_KEY = lsOaiKey;
         }
-      } catch (e) {}
+      } catch (e) { }
 
       if (typeof process !== "undefined" && process.env) {
         Object.assign(merged, process.env);
@@ -94,22 +94,37 @@
       if (!isFileProtocol && typeof fetch === "function") {
         var envLoaded = false;
 
-        // 1. Primary: load dynamic environment from /api/env (Vercel serverless runtime or local server)
-        try {
-          var apiRes = await fetch("/api/env", { cache: "no-store" });
-          if (apiRes.ok) {
-            var apiData = await apiRes.json();
-            if (apiData && typeof apiData === "object") {
-              Object.assign(merged, apiData);
-              envLoaded = true;
+        // 1. Try serverless endpoints: /api/env first, then /api as fallback
+        var endpoints = ["/api/env", "/api"];
+        for (var i = 0; i < endpoints.length; i++) {
+          try {
+            var apiRes = await fetch(endpoints[i], { cache: "no-store" });
+            if (apiRes.ok) {
+              var apiData = await apiRes.json();
+              if (
+                apiData &&
+                typeof apiData === "object" &&
+                (apiData.OPENAI_API_KEY !== undefined || apiData.SUPABASE_URL !== undefined)
+              ) {
+                Object.assign(merged, apiData);
+                envLoaded = true;
+                break;
+              }
             }
+          } catch (e) {
+            // Ignore endpoint error
           }
-        } catch (e) {
-          // /api/env not available
         }
 
-        // 2. Fallback: only if /api/env was unavailable, attempt local .env
-        if (!envLoaded) {
+        // 2. Only on localhost/development attempt to fetch local ./.env if endpoints were unavailable
+        var isLocalhost = Boolean(
+          typeof window !== "undefined" &&
+          window.location &&
+          (window.location.hostname === "localhost" ||
+            window.location.hostname === "127.0.0.1" ||
+            window.location.hostname === "[::1]")
+        );
+        if (!envLoaded && isLocalhost) {
           try {
             var dotRes = await fetch("./.env", { cache: "no-store" });
             if (dotRes.ok) {
