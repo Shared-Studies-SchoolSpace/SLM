@@ -92,18 +92,33 @@
       // If running in browser environment (only fetch if running over HTTP/HTTPS; file:// origin is null and blocked by CORS)
       var isFileProtocol = typeof window !== "undefined" && window.location && window.location.protocol === "file:";
       if (!isFileProtocol && typeof fetch === "function") {
-        var candidatePaths = ["./.env", "../.env", "/.env"];
-        for (var i = 0; i < candidatePaths.length; i++) {
+        var envLoaded = false;
+
+        // 1. Primary: load dynamic environment from /api/env (Vercel serverless runtime or local server)
+        try {
+          var apiRes = await fetch("/api/env", { cache: "no-store" });
+          if (apiRes.ok) {
+            var apiData = await apiRes.json();
+            if (apiData && typeof apiData === "object") {
+              Object.assign(merged, apiData);
+              envLoaded = true;
+            }
+          }
+        } catch (e) {
+          // /api/env not available
+        }
+
+        // 2. Fallback: only if /api/env was unavailable, attempt local .env
+        if (!envLoaded) {
           try {
-            var res = await fetch(candidatePaths[i], { cache: "no-store" });
-            if (res.ok) {
-              var text = await res.text();
+            var dotRes = await fetch("./.env", { cache: "no-store" });
+            if (dotRes.ok) {
+              var text = await dotRes.text();
               var parsed = parseEnvText(text);
               Object.assign(merged, parsed);
-              break;
             }
           } catch (e) {
-            // Skip unreadable path (e.g. CORS or 404)
+            // Ignore missing local .env
           }
         }
       } else if (isFileProtocol) {

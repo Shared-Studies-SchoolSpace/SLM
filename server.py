@@ -10,8 +10,10 @@ or with custom port:
 
 import os
 import sys
+import json
 import argparse
 import mimetypes
+from urllib.parse import urlparse
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 # Ensure correct MIME types for modern web assets
@@ -64,6 +66,63 @@ class HanziNAServerHandler(SimpleHTTPRequestHandler):
         """Respond to pre-flight CORS requests."""
         self.send_response(200, "OK")
         self.end_headers()
+
+    def do_GET(self):
+        """Handle GET requests, intercepting /api/env and /api/health."""
+        parsed = urlparse(self.path)
+        req_path = parsed.path
+
+        if req_path in ("/api/env", "/api/env/"):
+            env_file = os.path.join(WORKSPACE_DIR, ".env")
+            env_vars = {}
+            if os.path.exists(env_file):
+                try:
+                    with open(env_file, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith("#") and "=" in line:
+                                k, v = line.split("=", 1)
+                                env_vars[k.strip()] = v.strip().strip("'\"")
+                except Exception:
+                    pass
+
+            data = {
+                "SUPABASE_URL": env_vars.get("SUPABASE_URL")
+                or os.environ.get("SUPABASE_URL", "https://swnzwsohgpjlceplnfcg.supabase.co"),
+                "SUPABASE_ANON_KEY": env_vars.get("SUPABASE_ANON_KEY")
+                or os.environ.get("SUPABASE_ANON_KEY", "sb_publishable_ejODqwhAMKFrgXlvXMY-Ag_YWKaip6g"),
+                "SUPABASE_TABLE": env_vars.get("SUPABASE_TABLE")
+                or os.environ.get("SUPABASE_TABLE", "reading_sessions"),
+                "OPENAI_API_KEY": env_vars.get("OPENAI_API_KEY")
+                or os.environ.get("OPENAI_API_KEY", ""),
+                "OPENAI_MODEL": env_vars.get("OPENAI_MODEL")
+                or os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+            }
+            body = json.dumps(data, indent=2).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if req_path in ("/api/health", "/api/health/", "/api", "/api/"):
+            data = {
+                "status": "healthy",
+                "service": "HanziNA Lightweight Python Server",
+                "version": "1.0.0",
+                "python_version": sys.version.split()[0],
+                "platform": "Local Python Server",
+            }
+            body = json.dumps(data, indent=2).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        return super().do_GET()
 
     def log_message(self, format, *args):
         """Custom clean logging output."""

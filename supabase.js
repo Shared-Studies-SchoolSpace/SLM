@@ -72,25 +72,9 @@
       }
     }
 
-    // 3. Fetch from .env candidate paths in browser (only if not on file:// protocol)
-    var isFileProtocol = typeof window !== "undefined" && window.location && window.location.protocol === "file:";
-    if (!isFileProtocol && typeof fetch === "function") {
-      var candidatePaths = ["./.env", "../.env", "/.env"];
-      for (var i = 0; i < candidatePaths.length; i++) {
-        try {
-          var res = await fetch(candidatePaths[i], { cache: "no-store" });
-          if (res.ok) {
-            var text = await res.text();
-            var parsed = parseEnvText(text);
-            if (typeof window !== "undefined") {
-              window.__ENV__ = Object.assign({}, window.__ENV__ || {}, parsed);
-            }
-            return parsed;
-          }
-        } catch (e) {
-          // Silently skip unreadable paths (e.g. 404 or CORS)
-        }
-      }
+    // 3. Fallback: check global.__ENV__ from HanziNAEnv
+    if (typeof window !== "undefined" && window.__ENV__) {
+      return window.__ENV__;
     }
     return {};
   }
