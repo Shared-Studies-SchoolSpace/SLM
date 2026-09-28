@@ -1188,6 +1188,20 @@
     var errorPanel = $("#error-panel");
     if (errorPanel) errorPanel.hidden = true;
 
+    // If two-part text with @@@ was pasted into mapping input, separate mapping and translation
+    if (rawMapping && rawMapping.indexOf("@@@") !== -1) {
+      var dIdx = rawMapping.indexOf("@@@");
+      var manualTranslation = rawMapping.slice(dIdx + 3).trim();
+      rawMapping = rawMapping.slice(0, dIdx).trim();
+      if (manualTranslation) {
+        global.__hanzina_last_translation = manualTranslation;
+      }
+      if (mappingInput) {
+        mappingInput.value = rawMapping;
+        updateCounters();
+      }
+    }
+
     // Check if rawText contains inline mapping tokens Hanzi(pinyin,english)
     var text = rawText;
     var inlineMap = extractInlineMapping(rawText);
@@ -1432,7 +1446,7 @@
         var submitBtn = $("#auth-signin-submit");
 
         if (!username) {
-          signinError.textContent = "Please enter your username.";
+          signinError.textContent = "Please enter your username or email.";
           signinError.hidden = false;
           return;
         }
@@ -1536,6 +1550,12 @@
           return;
         }
 
+        if (res.needsEmailConfirmation) {
+          toast("info", "Confirmation Link Sent", "Account created! Please check your email inbox to confirm your account before logging in.");
+          modal.close();
+          return;
+        }
+
         currentUser = {
           id: res.user ? res.user.id : "user-" + Date.now(),
           email: email,
@@ -1572,6 +1592,23 @@
 
     // Initial check of Supabase session
     checkUserSession();
+
+    // Subscribe to auth state changes
+    var sb = global.HanziNASupabase;
+    if (sb && typeof sb.onAuthStateChange === "function") {
+      sb.onAuthStateChange(function (event, session) {
+        if (event === "SIGNED_IN" && session && session.user) {
+          checkUserSession();
+        } else if (event === "SIGNED_OUT") {
+          currentUser = null;
+          try {
+            localStorage.removeItem("hanzina_user");
+          } catch (e) {}
+          renderUserUI();
+          renderCTA();
+        }
+      });
+    }
   }
 
   /* ----- Help Modal ----- */

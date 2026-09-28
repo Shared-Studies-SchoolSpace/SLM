@@ -5,10 +5,10 @@
 (function (global) {
   "use strict";
 
-  // Default configuration — all real values must be provided via .env
+  // Default configuration — client-side defaults with override support
   var defaultEnv = {
-    SUPABASE_URL: "",
-    SUPABASE_ANON_KEY: "",
+    SUPABASE_URL: "https://swnzwsohgpjlceplnfcg.supabase.co",
+    SUPABASE_ANON_KEY: "sb_publishable_ejODqwhAMKFrgXlvXMY-Ag_YWKaip6g",
     SUPABASE_TABLE: "reading_sessions",
     OPENAI_API_KEY: "",
     OPENAI_MODEL: "gpt-4o-mini"
@@ -52,6 +52,17 @@
     envPromise = (async function () {
       var merged = Object.assign({}, defaultEnv, global.__ENV__ || {});
 
+      try {
+        if (typeof localStorage !== "undefined") {
+          var lsSbUrl = localStorage.getItem("hanzina_supabase_url");
+          var lsSbKey = localStorage.getItem("hanzina_supabase_key");
+          var lsOaiKey = localStorage.getItem("hanzina_openai_key");
+          if (lsSbUrl) merged.SUPABASE_URL = lsSbUrl;
+          if (lsSbKey) merged.SUPABASE_ANON_KEY = lsSbKey;
+          if (lsOaiKey) merged.OPENAI_API_KEY = lsOaiKey;
+        }
+      } catch (e) {}
+
       if (typeof process !== "undefined" && process.env) {
         Object.assign(merged, process.env);
       }
@@ -75,7 +86,7 @@
               break;
             }
           }
-        } catch (e) {}
+        } catch (e) { }
       }
 
       // If running in browser environment

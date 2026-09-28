@@ -118,12 +118,15 @@
             console.info("[HanziNA] Supabase client initialized successfully.");
           } catch (err) {
             console.warn("[HanziNA] Failed to create Supabase client:", err);
+            initPromise = null;
           }
         } else {
           console.warn("[HanziNA] Supabase JS library (@supabase/supabase-js) not loaded yet.");
+          initPromise = null;
         }
       } else {
         console.info("[HanziNA] No Supabase credentials found in .env yet.");
+        initPromise = null;
       }
       return client;
     })();
@@ -197,31 +200,44 @@
       }
 
       var user = authRes.data.user;
+      var hasSession = !!authRes.data.session;
+      var profileRow = null;
+
       if (user && user.id) {
         // Record profile in profiles table
-        var profileRow = {
+        profileRow = {
           id: user.id,
           username: username,
           email: email,
           updated_at: new Date().toISOString()
         };
-        var profRes = await client
-          .from(config.profilesTable)
-          .upsert(profileRow, { onConflict: "id" });
+        try {
+          var profRes = await client
+            .from(config.profilesTable)
+            .upsert(profileRow, { onConflict: "id" });
 
-        if (profRes.error) {
-          console.warn("[HanziNA] Profile upsert notice:", profRes.error.message);
+          if (profRes.error) {
+            console.warn("[HanziNA] Profile upsert notice:", profRes.error.message);
+          }
+        } catch (pe) {
+          console.warn("[HanziNA] Profile upsert exception:", pe);
         }
 
         return {
           success: true,
           user: user,
           session: authRes.data.session,
+          needsEmailConfirmation: !hasSession,
           profile: profileRow
         };
       }
 
-      return { success: true, user: user, session: authRes.data.session };
+      return {
+        success: true,
+        user: user,
+        session: authRes.data.session,
+        needsEmailConfirmation: !hasSession
+      };
     } catch (err) {
       console.warn("[HanziNA] SignUp exception:", err);
       return { success: false, error: err.message || "An unexpected error occurred during signup." };
@@ -229,7 +245,7 @@
   }
 
   /**
-   * Log in with username and password
+   * Log in with username or email and password
    * @param {Object} params - { username, password }
    */
   async function signIn(params) {
@@ -245,7 +261,7 @@
     var password = params.password || "";
 
     if (!loginInput) {
-      return { success: false, error: "Please enter your username." };
+      return { success: false, error: "Please enter your username or email." };
     }
     if (!password) {
       return { success: false, error: "Please enter your password." };
@@ -260,21 +276,31 @@
         targetEmail = loginInput.toLowerCase();
       } else {
         // Look up email associated with the username in profiles table
-        var profRes = await client
-          .from(config.profilesTable)
-          .select("id, email, username")
-          .ilike("username", loginInput)
-          .maybeSingle();
+        try {
+          var profRes = await client
+            .from(config.profilesTable)
+            .select("id, email, username")
+            .ilike("username", loginInput)
+            .maybeSingle();
 
-        if (profRes.error) {
-          console.warn("[HanziNA] Username lookup query error:", profRes.error.message);
+          if (profRes.error) {
+            console.warn("[HanziNA] Username lookup query notice:", profRes.error.message);
+          }
+
+          if (profRes.data && profRes.data.email) {
+            targetEmail = profRes.data.email;
+            usernameStr = profRes.data.username || loginInput;
+          }
+        } catch (pe) {
+          console.warn("[HanziNA] Profiles lookup exception:", pe);
         }
 
-        if (!profRes.data || !profRes.data.email) {
-          return { success: false, error: "No account found with username '" + loginInput + "'." };
+        if (!targetEmail) {
+          return {
+            success: false,
+            error: "No account found for username '" + loginInput + "'. If you signed up with an email address, please enter your email."
+          };
         }
-        targetEmail = profRes.data.email;
-        usernameStr = profRes.data.username || loginInput;
       }
 
       // Authenticate with Supabase Auth
@@ -284,7 +310,11 @@
       });
 
       if (authRes.error) {
-        return { success: false, error: authRes.error.message };
+        var msg = authRes.error.message;
+        if (msg && msg.toLowerCase().indexOf("email not confirmed") !== -1) {
+          msg = "Your email address has not been confirmed yet. Please check your inbox for the Supabase confirmation link.";
+        }
+        return { success: false, error: msg };
       }
 
       return {

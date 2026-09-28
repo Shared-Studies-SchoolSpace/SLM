@@ -11,46 +11,68 @@
   var CJK_GLOBAL_RE = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/g;
 
   /**
-   * Build the API prompt asking the model for BOTH:
+   * Build the API prompt asking the model for two-part plain text:
    *   - mapping: occurrence-ordered Hanzi(pinyin,english) tokens
-   *   - translation: a fluent natural English sentence (no pinyin)
-   * Response format: raw JSON object — no markdown, no fences.
+   *   - delimiter: @@@
+   *   - translation: a fluent natural English sentence
    */
   function buildPrompt(text) {
     var textClean = (text || "").trim();
     return (
-      "You are a Chinese language assistant for the HanziNA reader. Given the Chinese text below, respond with a JSON object containing exactly two keys:\n\n" +
-      "1. \"mapping\": the occurrence-ordered word mapping string. Rules:\n" +
-      "   - Format: Hanzi(pinyin,english) for each lexical unit.\n" +
-      "   - Map Chinese words/characters ONLY. Do NOT include or map punctuation (，, 。, ！, ？ etc.).\n" +
-      "   - One entry per occurrence, in the EXACT sequence of the text.\n" +
-      "   - Every Chinese character must be accounted for in order. Do not skip repeated characters.\n" +
-      "   - Separate entries with a single space.\n" +
-      "   - pinyin field: tone-marked Mandarin Pinyin (e.g. tàichū). NOT English.\n" +
-      "   - english field: concise English gloss/definition.\n\n" +
-      "2. \"translation\": a fluent, natural English translation of the full passage. No pinyin. No word-by-word gloss. Write it as a proper English sentence or paragraph.\n\n" +
-      "Respond with ONLY the raw JSON object — no markdown, no code fences, no explanation.\n\n" +
-      "EXAMPLE INPUT: 太初有道，道与神同在，道就是神。\n" +
-      "EXAMPLE OUTPUT: {\"mapping\":\"太初(tàichū,in the beginning) 有(yǒu,was) 道(dào,the Word) 道(dào,the Word) 与(yǔ,with) 神(shén,God) 同在(tóngzài,with) 道(dào,the Word) 就是(jiùshì,was) 神(shén,God)\",\"translation\":\"In the beginning was the Word, and the Word was with God, and the Word was God.\"}\n\n" +
+      "You are a Chinese-language annotation engine for the HanziNA reader. Given the Chinese text in <INPUT_TEXT>, output ONLY the following two-part plain text — no JSON, no markdown, no code fences, no labels, no commentary:\n\n" +
+      "<mapping string>\n" +
+      "@@@\n" +
+      "<translation string>\n\n" +
+      "The line containing only @@@ is a fixed delimiter. Everything before it is the mapping; everything after it is the translation. Nothing else may appear in the output.\n\n" +
+      "1. Mapping — an occurrence-ordered word-mapping string.\n\n" +
+      "Format: <Hanzi>(<pinyin>,<english>) per lexical unit, entries separated by a single space, no trailing space. Every slot must contain real content for that specific unit. NEVER output the words \"pinyin\", \"pīnyīn\" or \"english\" as values.\n\n" +
+      "Segmentation (follow the register of the text):\n" +
+      "- Modern prose: group characters into one entry when they form a standard Mandarin dictionary word or fixed expression (e.g. 太初, 同在, 就是, idioms, reduplications like 高高兴兴).\n" +
+      "- Classical/literary Chinese (poetry, 文言文): most words are single characters. Group only fixed compounds and names (e.g. 木兰, 可汗, 叹息). When unsure, use single characters.\n" +
+      "- Function words/particles (的, 了, 与, 在, 是, etc.) are standalone entries unless part of a fixed compound.\n" +
+      "- Entries follow the exact left-to-right order of the source, including repeats — never merge or skip repeated occurrences.\n" +
+      "- Self-check: concatenating the Hanzi from every entry in order must reproduce every Chinese character in the source, with nothing skipped, duplicated, or reordered.\n\n" +
+      "Scope:\n" +
+      "- Map Chinese (Hanzi) content ONLY.\n" +
+      "- Exclude ALL punctuation, Chinese or Western (，。！？、；：\"\"''《》…—- etc.).\n" +
+      "- Exclude non-Hanzi content — digits, Latin letters, symbols, whitespace.\n\n" +
+      "Pinyin field:\n" +
+      "- Real tone-marked Hanyu Pinyin for that unit (e.g. tàichū), syllables joined with no spaces or hyphens.\n" +
+      "- Neutral tone: no diacritic (e.g. ma, de).\n" +
+      "- Polyphonic characters (多音字) and fixed terms: use the reading that fits this occurrence's meaning (e.g. 还 hái vs huán; 可汗 kèhán, not kěhàn).\n" +
+      "- Capitalize pinyin only for true proper nouns — personal names, places, organizations (e.g. 北京 Běijīng, 木兰 Mùlán). Common nouns stay lowercase even if the English gloss is capitalized (e.g. 神 shén → \"God\").\n\n" +
+      "English field:\n" +
+      "- A concise gloss for THIS occurrence's sense, not every dictionary sense.\n" +
+      "- Never use a comma inside this field — it breaks the pinyin/english split. Use a semicolon for multiple senses.\n" +
+      "- No parentheses inside this field.\n\n" +
+      "2. Translation — a fluent, idiomatic English rendering of the full passage as normal prose. No pinyin, no gloss, no brackets, no markdown.\n\n" +
+      "Edge cases:\n" +
+      "- Empty or punctuation-only input → output an empty line, then @@@, then an empty line.\n" +
+      "- Non-Chinese material mixed into the source: omit from the mapping, but reflect its meaning in the translation.\n" +
+      "- The mapping must never contain the literal sequence @@@.\n\n" +
+      "Before responding, verify silently: no entry contains the literal words pinyin/pīnyīn/english as values; the concatenated Hanzi reconstructs the source in order; no english field contains a comma; the delimiter line appears exactly once.\n\n" +
+      "EXAMPLE 1 INPUT: 太初有道，道与神同在，道就是神。\n" +
+      "EXAMPLE 1 OUTPUT:\n" +
+      "太初(tàichū,in the beginning) 有(yǒu,was) 道(dào,the Word) 道(dào,the Word) 与(yǔ,with) 神(shén,God) 同在(tóngzài,with) 道(dào,the Word) 就是(jiùshì,was) 神(shén,God)\n" +
+      "@@@\n" +
+      "In the beginning was the Word, and the Word was with God, and the Word was God.\n\n" +
+      "EXAMPLE 2 INPUT: 床前明月光，疑是地上霜。\n" +
+      "EXAMPLE 2 OUTPUT:\n" +
+      "床(chuáng,bed) 前(qián,in front of) 明月(míngyuè,bright moon) 光(guāng,light) 疑(yí,suspect) 是(shì,be) 地上(dìshàng,on the ground) 霜(shuāng,frost)\n" +
+      "@@@\n" +
+      "Bright moonlight falls before my bed — I wonder if it is frost upon the ground.\n\n" +
       "Chinese text:\n" +
-      textClean
+      "<INPUT_TEXT>\n" +
+      textClean + "\n" +
+      "</INPUT_TEXT>"
     );
   }
 
   /**
    * Build a human-readable copy-paste prompt (for the Copy Prompt button / manual AI use).
-   * Explains both outputs so the user can paste it into Gemini / ChatGPT.
    */
   function buildCopyPrompt(text) {
-    var textClean = (text || "").trim();
-    return (
-      "Please process the following Chinese text for the HanziNA reader and return a JSON object with TWO fields:\n\n" +
-      "1. \"mapping\": occurrence-ordered word mapping. Format: Hanzi(pinyin,english) per lexical unit, space-separated, in exact text order. Include every Chinese character. Omit punctuation.\n" +
-      "2. \"translation\": a fluent, natural English translation of the full passage. No pinyin. Proper English only.\n\n" +
-      "Output ONLY the raw JSON — no markdown, no code fences, no explanation.\n\n" +
-      "Chinese text:\n" +
-      textClean
-    );
+    return buildPrompt(text);
   }
 
   /**
@@ -195,19 +217,26 @@
       throw new Error("EMPTY_AI_RESPONSE");
     }
 
-    // Parse JSON response { mapping, translation }
+    // Parse two-part plain text response: <mapping>\n@@@\n<translation>
     var mapping     = "";
     var translation = "";
-    try {
-      // Strip any accidental markdown fences before parsing
-      var jsonStr = content.replace(/```[a-z]*\n?/gi, "").replace(/```/g, "").trim();
-      var parsed  = JSON.parse(jsonStr);
-      mapping     = (parsed.mapping     || "").trim();
-      translation = (parsed.translation || "").trim();
-    } catch (e) {
-      // Fallback: model didn't return JSON — treat whole content as mapping
-      mapping     = content;
-      translation = "";
+    var cleanContent = content.replace(/```[a-z]*\n?/gi, "").replace(/```/g, "").trim();
+
+    var delimIdx = cleanContent.indexOf("@@@");
+    if (delimIdx !== -1) {
+      mapping     = cleanContent.slice(0, delimIdx).trim();
+      translation = cleanContent.slice(delimIdx + 3).trim();
+    } else {
+      // Fallback: check if model returned JSON
+      try {
+        var parsed  = JSON.parse(cleanContent);
+        mapping     = (parsed.mapping     || "").trim();
+        translation = (parsed.translation || "").trim();
+      } catch (e) {
+        // Fallback: treat whole content as mapping
+        mapping     = cleanContent;
+        translation = "";
+      }
     }
 
     // Sanitize the mapping string to ensure 100% HanziNA format compliance

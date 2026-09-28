@@ -1050,13 +1050,22 @@ html, body {
 }
 
 .pill-btn-ai.loading .action-btn-svg {
-  animation: aiRotate 1.2s infinite linear;
+  display: none;
 }
 
-@keyframes aiRotate {
-  0% { transform: rotate(0deg) scale(1); }
-  50% { transform: rotate(180deg) scale(1.15); }
-  100% { transform: rotate(360deg) scale(1); }
+.pill-btn-ai.loading::after {
+  content: "";
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: aiSpin 0.7s linear infinite;
+}
+
+@keyframes aiSpin {
+  to { transform: rotate(360deg); }
 }
 
 /* Go to Reading View button — appears in pill when mapping is ready */
