@@ -89,8 +89,9 @@
         } catch (e) { }
       }
 
-      // If running in browser environment
-      if (typeof fetch === "function") {
+      // If running in browser environment (only fetch if running over HTTP/HTTPS; file:// origin is null and blocked by CORS)
+      var isFileProtocol = typeof window !== "undefined" && window.location && window.location.protocol === "file:";
+      if (!isFileProtocol && typeof fetch === "function") {
         var candidatePaths = ["./.env", "../.env", "/.env"];
         for (var i = 0; i < candidatePaths.length; i++) {
           try {
@@ -105,6 +106,8 @@
             // Skip unreadable path (e.g. CORS or 404)
           }
         }
+      } else if (isFileProtocol) {
+        console.info("[HanziNA] Running via file:// protocol. Using embedded environment defaults.");
       }
 
       global.__ENV__ = merged;

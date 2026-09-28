@@ -1,0 +1,3 @@
+# HanziNA Python Server Dependencies
+# The lightweight server uses standard library modules (http.server, json, mimetypes).
+# Add any future external Python packages here if needed.
